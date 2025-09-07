@@ -1,0 +1,3 @@
+id,site_id,ts,platform,query,present,snippet,sentiment
+55555555-5555-5555-5555-555555555555,33333333-3333-3333-3333-333333333333,2025-09-06T12:00:00Z,google_ai_overviews,"best pricing for example product",true,"ExampleCo offers transparent pricing...",positive
+

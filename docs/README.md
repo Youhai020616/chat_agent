@@ -38,7 +38,9 @@ docs/
 
 ### 架构文档
 - **[项目概览](architecture/project-overview.md)** - 系统总体设计与技术实现路径
-- **[系统设计](architecture/system-design.md)** - 接口风格（REST/Realtime/GraphQL）、前后端与数据库（Supabase）设计、部署与观测建议
+- **[系统设计](architecture/system-design.md)** - 接口风格（REST/Realtime/GraphQL）、后端 + Worker + 数据库（Supabase）设计、部署与观测建议
+- **[数据模型与 RLS](architecture/data-model.md)** - 表结构、索引与 RLS 策略（Supabase）
+- **[成本与容量](architecture/cost-and-capacity.md)** - 成本优先与扩展路径
 
 ### 方法论文档  
 - **[GEO 方法论](methodology/geo.md)** - 21万字生成式引擎优化白皮书，涵盖：
@@ -48,7 +50,8 @@ docs/
   - 行业影响与未来趋势
 
 ### 操作指南
-- 🚧 **开发中** - 实施指南将在代码实现过程中逐步补充
+- **[Supabase 云端托管与 Mock 数据导入](guides/supabase-setup.md)**
+- **[KPI 仪表盘上线规划](guides/kpi-dashboard.md)**
 
 ## 🤝 贡献指南
 

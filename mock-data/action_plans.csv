@@ -1,0 +1,3 @@
+run_id,items_json
+44444444-4444-4444-4444-444444444444,"[{""action"":"Add FAQ schema to /pricing",""area"":"content",""impact"":5,""effort"":2},{""action"":"Create LocalBusiness schema on /locations",""area"":"geo_local",""impact"":4,""effort"":3}]"
+
