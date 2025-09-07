@@ -36,6 +36,8 @@ What to expect once implementation begins
 - Agents: Individually testable components encapsulating domain-specific analysis. Each should accept the shared site analysis context and return structured results suitable for integration.
 - Integrator/Prioritizer: Merges agent outputs and orders recommendations by impact/effort.
 
-Key document
-- pre.md — the source of truth for the system’s intended capabilities, agents, and workflow. Keep WARP.md aligned with updates to this document.
+Key documents
+- docs/architecture/project-overview.md — the source of truth for the system's intended capabilities, agents, and workflow. Keep WARP.md aligned with updates to this document.
+- docs/methodology/geo.md — comprehensive GEO methodology and best practices guide.
+- docs/README.md — documentation navigation and overview.
 
