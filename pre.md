@@ -151,7 +151,57 @@ CrawlerNode ─┬─► KeywordAgentNode ─┐
 2. **PageSpeed Insights API** — 获取性能分数
 3. **Google My Business API** — 读取/更新 GMB 信息
 
-## 开发路线图
+## GEO 子系统规划
+（已在上文阐述——EntityAgent、ContentStructAgent、CitationAgent、SentimentAgent、SERPSpyAgent 以及 Integration & Scoring Node）
+
+---
+
+## SEO 子系统规划
+### 目标
+1. 提升传统搜索引擎自然流量、排名与转化率。
+2. 为 GEO 提供技术健康与权威基石（结构化数据、E-E-A-T 信号）。
+3. 监控并量化 SEO KPI：Organic Visits、Avg Rank、CWV、E-E-A-T Score。
+
+### LangGraph 拓扑
+```
+CrawlerNode ─► TechnicalAuditAgent
+             ├► KeywordGapAgent
+             ├► CompetitorAgent
+             ├► ContentQualityAgent
+             ├► LinkAuditAgent
+             └─► Integration & Prioritizer ─► SEOActionPlan
+```
+
+### 核心 Agent
+| Agent | 职责 |
+|-------|------|
+| TechnicalAuditAgent | Lighthouse + Schema 检查，输出 CWV & 技术修复建议 |
+| KeywordGapAgent | GSC & SERP API → 关键词缺口、意图分层 |
+| CompetitorAgent | 外链 / SERP Feature 差距分析 |
+| ContentQualityAgent | 自动 E-E-A-T 评分，薄弱内容识别 |
+| LinkAuditAgent | 内外链分布 & 失效链接检测 |
+| Integration & Prioritizer | Impact/Effort 排序，生成 action plan |
+
+### 数据表（PostgreSQL）
+- seo_pages(url, keyword, current_rank, intent, cwv)
+- backlink_profile(source, target, authority)
+- seo_kpis_daily(date, organic_visits, avg_rank, cwv_score, e_e_a_t_score)
+
+---
+
+## 统一开发路线图
+| Milestone | 内容 | 周期 |
+|-----------|------|-----|
+| M0 | 项目初始化：LangGraph 骨架、CI/CD、Docker | 1 周 |
+| M1 | Web Crawler + SEOState + 存储层 | 1 周 |
+| M2 | GEO 基础：Entity & SERPSpy Agent | 1 周 |
+| M3 | SEO 基础：TechnicalAudit & KeywordGap Agent | 1 周 |
+| M4 | 完成 GEO 五大 Agent & Integration | 2 周 |
+| M5 | 完成 SEO 五大 Agent & Integration | 2 周 |
+| M6 | KPI Dashboard + FastAPI/CLI | 1 周 |
+| M7 | 前端仪表盘（可选） | 1 周 |
+
+---
 | Milestone | 目标 | 关键交付物 |
 |-----------|------|-----------|
 | M0 | 项目初始化 | LangGraph 骨架、基础目录、CI/CD, Dockerfile |
