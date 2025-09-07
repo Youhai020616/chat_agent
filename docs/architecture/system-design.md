@@ -139,3 +139,146 @@ Appendix: Pros/Cons snapshot
 - GraphQL: +flexible queries +single roundtrip; -added complexity/schema ops
 - gRPC: +fast internal RPC; -browser unfriendly, not for public API
 
+12. GEO subsystem implementation (aligned with geo.md)
+12.1 Data acquisition strategy (SERP/Exa first, optional light page fetch)
+- External signals (no in-house crawling required):
+  - SERP API: SERP features, PAA, competitive URLs, (optionally) AI Overviews if provider supports
+  - Exa API: cross-site search/crawl for third-party mentions, directory listings, news; provides evidence URLs
+  - PageSpeed Insights API: CWV/perf per URL (mobile/desktop)
+  - Google Search Console (optional): impressions/clicks/CTR/avg position ground truth
+- Internal limited access (recommended):
+  - Fetch sitemap.xml → pick Top N important URLs (e.g., 50/100) by sitemap + GSC
+  - For these URLs, fetch HTML (optionally headless render for JS-injected schema) and extract:
+    - Schema types (FAQ/HowTo/LocalBusiness/Product/Article), meta/canonical/hreflang/status
+    - Headings hierarchy (H1–H3), list/table density, Q&A blocks, paragraph lengths
+    - Basic internal links (local graph signal)
+- Configurable modes:
+  - no_crawl: only SERP/Exa/PSI/GSC
+  - sample_fetch(n): limited page sampling (recommended baseline)
+  - shallow_crawl(depth, max_pages): optional upgrade for link graph/orphan/404 scan
+
+12.2 GEO agents
+- EntityAgent: map Organization/Person/Product/LocalBusiness to external KGs (Wikidata/Google KG), produce schema diff/checklist and missing fields
+- ContentStructAgent: compute extractability score for Top N pages (headings_ok, faq_count, list/table density, qna_blocks, avg_paragraph_len)
+- CitationAgent: analyze outbound/inbound citations; suggest authoritative references to back claims; track external citations (via Exa)
+- SentimentAgent: monitor brand sentiment in sampled answers/articles; flag risky topics; suggest corrective content
+- AIInterviewAgent (SERPSpy): generate GEO query templates (brand/core tasks/geo variants); sample AI answers if available; fallback to SERP+authority sources; tag confidence
+- IntegratorNode: merge agent outputs and prioritize actions by Impact/Effort and KPI gaps
+
+12.3 Orchestration (LangGraph)
+- Parallel stage: run Entity/ContentStruct/Citation/Sentiment/AIInterview in parallel
+- Debate stage: Advocate (opportunity) vs Reviewer (critique/completeness/compliance) rounds (max_debate_rounds)
+- Risk stage: rotate technical risk (perf/rollback/compat), brand/compliance (E-E-A-T/citations/entity consistency), implementation complexity (cost/deps/teams) (max_risk_rounds)
+- Final decision: produce action_plan with structured tasks (action/area/impact/effort/owner/deps)
+
+12.4 GEO KPIs
+- presence_rate: brand presence in AI answers for target queries
+- snippet_ownership_score (SOS): fraction of snippets attributable to your content
+- citations_count & authority: external citations (quantity/authority/trust)
+- sentiment_ratio: positive/neutral/negative distribution
+- zero_click_presence: AI summary presence vs traditional clicks
+- schema_coverage: % of key pages with correct schema
+- extractability_score: page-level extractability metric
+- freshness & NAP consistency: content recency; local NAP intra-site consistency
+
+12.5 API contracts (REST + Realtime)
+- POST /geo/analyze
+  - body: { version: "v1", site_id: uuid, mode: "no_crawl" | "sample_fetch", providers: { serp?: boolean, exa?: boolean, psi?: boolean, gsc?: boolean }, sample_size?: number }
+  - return: { run_id: uuid }
+- GET /geo/runs/{run_id}
+  - return: { status: "queued"|"running"|"completed"|"failed", progress: number (0-100), outputs_summary?: {...} }
+- GET /geo/plan/{run_id}
+  - return: { items: [{ action, area: "entity"|"content"|"citation"|"sentiment"|"geo_local", impact: 1-5, effort: 1-5, owner?: string, deps?: string[] }] }
+- GET /geo/kpis?site_id&from&to
+  - return: { presence_rate_ts: [...], sos_ts: [...], citations_ts: [...], sentiment_ts: [...] }
+- WS/SSE /ws/geo/runs/{run_id}
+  - events: { stage, status, percent_complete, message? }
+
+12.6 Supabase schema (DDL draft)
+Note: add tenant_id uuid to all tables; enable RLS; policies match tenant_id from JWT.
+
+```sql
+-- Entities and extractability
+create table if not exists geo_entities (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid not null,
+  site_id uuid not null,
+  entity_type text not null, -- Organization | Person | Product | LocalBusiness
+  name text not null,
+  kg_id text,
+  confidence numeric,
+  last_seen timestamptz default now()
+);
+create index if not exists idx_geo_entities_site on geo_entities(site_id);
+
+create table if not exists geo_extractability (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid not null,
+  site_id uuid not null,
+  url text not null,
+  headings_ok boolean,
+  faq_count int default 0,
+  table_count int default 0,
+  list_density numeric,
+  qna_blocks int default 0,
+  avg_paragraph_len numeric,
+  updated_at timestamptz default now()
+);
+create index if not exists idx_geo_extractability_site_url on geo_extractability(site_id, url);
+
+-- AI answers sampling & citations
+create table if not exists ai_answers (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid not null,
+  site_id uuid not null,
+  ts timestamptz not null default now(),
+  platform text not null, -- google_ai_overviews | chatgpt | perplexity | etc
+  query text not null,
+  present boolean not null,
+  snippet text,
+  citations jsonb,
+  sentiment text -- positive | neutral | negative
+);
+create index if not exists idx_ai_answers_site_ts on ai_answers(site_id, ts desc);
+
+create table if not exists geo_citations (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid not null,
+  site_id uuid not null,
+  url text not null,
+  cited_by text not null,
+  authority_score numeric,
+  last_seen timestamptz default now()
+);
+create index if not exists idx_geo_citations_site_url on geo_citations(site_id, url);
+
+-- NAP audit for local GEO
+create table if not exists nap_audit (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid not null,
+  site_id uuid not null,
+  location_id text,
+  fields_ok boolean,
+  inconsistencies jsonb,
+  updated_at timestamptz default now()
+);
+
+-- RLS (example; adjust policy function per your JWT claims)
+alter table geo_entities enable row level security;
+create policy geo_entities_tenant_select on geo_entities for select
+  using (tenant_id = (auth.jwt() ->> 'tenant_id')::uuid);
+-- Repeat RLS enable/policies for all tables
+```
+
+12.7 Evaluation & reflection
+- LLM-as-a-Judge: score evidence sufficiency, extractability, structure completeness, brand safety
+- Ground Truth: GSC/PSI trends, (if available) AI summary citations traffic
+- Fact checks: schema validity, citation validity, NAP consistency, FAQ/HowTo effectiveness
+- Reflection memory: write "context-action-result-learning" rows (use pgvector or JSONB) grouped by role/topic for future retrieval
+
+12.8 Rollout plan (GEO)
+- Phase 1: SERP+Exa+PSI only, no page fetch; produce external-visibility plan with confidence labels
+- Phase 2 (recommended baseline): add sitemap fetch + Top N page sampling; unlock schema/extractability/NAP checks
+- Phase 3: optional shallow crawl (depth 1–2) for link graph/orphans/broken links
+- Phase 4: enterprise sites: integrate third-party crawlers or full-scan pipeline
+
