@@ -38,6 +38,7 @@ docs/
 
 ### 架构文档
 - **[项目概览](architecture/project-overview.md)** - 系统总体设计与技术实现路径
+- **[系统设计](architecture/system-design.md)** - 接口风格（REST/Realtime/GraphQL）、前后端与数据库（Supabase）设计、部署与观测建议
 
 ### 方法论文档  
 - **[GEO 方法论](methodology/geo.md)** - 21万字生成式引擎优化白皮书，涵盖：
