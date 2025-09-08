@@ -121,7 +121,8 @@ class IntegratorNode:
                 "content": state.content_insights,
                 "technical": state.technical_insights,
                 "geo": state.geo_insights,
-                "link": state.link_insights
+                "link": state.link_insights,
+                "serp": state.serp_insights
             }
             
             # 生成优化计划
@@ -155,29 +156,86 @@ class IntegratorNode:
                     "priority": "high",
                     "description": "页面缺少 Meta Description，建议添加 150-160 字符的描述"
                 })
-        
+
         if insights.get("technical"):
             technical_data = insights["technical"]
-            if technical_data.get("load_time", 0) > 3.0:
+            # 检查页面性能
+            page_performance = technical_data.get("page_performance", {})
+            if page_performance.get("load_time", 0) > 3.0:
                 plan.append({
                     "action": "优化页面加载速度",
                     "category": "technical",
                     "impact": 5,
                     "effort": 4,
                     "priority": "high",
-                    "description": f"页面加载时间 {technical_data.get('load_time'):.1f}s，建议优化到 3s 以内"
+                    "description": f"页面加载时间 {page_performance.get('load_time'):.1f}s，建议优化到 3s 以内"
                 })
-        
+
+            # 检查技术SEO问题
+            critical_issues = technical_data.get("critical_issues", [])
+            for issue in critical_issues[:3]:  # 只处理前3个关键问题
+                plan.append({
+                    "action": issue.get("title", "修复技术问题"),
+                    "category": "technical",
+                    "impact": 5 if issue.get("severity") == "critical" else 4,
+                    "effort": 3,
+                    "priority": "high" if issue.get("severity") == "critical" else "medium",
+                    "description": issue.get("description", "")
+                })
+
         if insights.get("keyword"):
             keyword_data = insights["keyword"]
-            if keyword_data.get("keyword_gaps"):
+            # 处理关键词缺口
+            keyword_gaps = keyword_data.get("keyword_gaps", [])
+            if keyword_gaps:
                 plan.append({
-                    "action": "优化关键词覆盖",
+                    "action": "填补关键词缺口",
                     "category": "keyword",
                     "impact": 4,
                     "effort": 3,
                     "priority": "medium",
-                    "description": "发现关键词缺口，建议增加相关内容"
+                    "description": f"发现 {len(keyword_gaps)} 个关键词缺口，建议增加相关内容"
+                })
+
+            # 处理关键词密度问题
+            keyword_density = keyword_data.get("keyword_density", {})
+            density_analysis = keyword_density.get("density_analysis", {})
+            if density_analysis.get("over_optimized", 0) > 0:
+                plan.append({
+                    "action": "优化关键词密度",
+                    "category": "keyword",
+                    "impact": 3,
+                    "effort": 2,
+                    "priority": "medium",
+                    "description": "部分关键词密度过高，需要调整避免过度优化"
+                })
+
+        if insights.get("geo"):
+            geo_data = insights["geo"]
+            # 处理NAP一致性问题
+            nap_analysis = geo_data.get("nap_analysis", {})
+            if nap_analysis.get("consistency_score", 100) < 90:
+                plan.append({
+                    "action": "改善NAP信息一致性",
+                    "category": "geo",
+                    "impact": 4,
+                    "effort": 3,
+                    "priority": "high",
+                    "description": "公司名称、地址或电话信息存在不一致，影响本地SEO"
+                })
+
+        if insights.get("serp"):
+            serp_data = insights["serp"]
+            # 处理本地搜索机会
+            local_opportunities = serp_data.get("local_search_opportunities", [])
+            if local_opportunities:
+                plan.append({
+                    "action": "抓住本地搜索机会",
+                    "category": "geo",
+                    "impact": 4,
+                    "effort": 3,
+                    "priority": "medium",
+                    "description": f"发现 {len(local_opportunities)} 个本地搜索优化机会"
                 })
         
         # 按优先级和影响力排序

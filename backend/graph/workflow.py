@@ -12,48 +12,57 @@ from langgraph.checkpoint.memory import MemorySaver
 from .state import SEOState
 from .nodes import CrawlerNode, AgentNode, IntegratorNode
 from ..agents.geo import EntityAgent, SERPSpyAgent
+from ..agents.seo import TechnicalAuditAgent, KeywordGapAgent
 
 logger = logging.getLogger(__name__)
 
 
 def create_seo_workflow(config: Optional[Dict[str, Any]] = None) -> StateGraph:
     """创建 SEO & GEO 分析工作流"""
-    
+
     # 创建状态图
     workflow = StateGraph(SEOState)
-    
+
     # 创建节点
     crawler_node = CrawlerNode(config)
     entity_agent = EntityAgent(config)
     serp_spy_agent = SERPSpyAgent(config)
+    technical_audit_agent = TechnicalAuditAgent(config)
+    keyword_gap_agent = KeywordGapAgent(config)
     integrator_node = IntegratorNode(config)
-    
+
     # 添加节点到工作流
     workflow.add_node("crawler", crawler_node)
     workflow.add_node("entity_analysis", AgentNode(entity_agent, "geo_insights"))
     workflow.add_node("serp_analysis", AgentNode(serp_spy_agent, "serp_insights"))
+    workflow.add_node("technical_audit", AgentNode(technical_audit_agent, "technical_insights"))
+    workflow.add_node("keyword_gap", AgentNode(keyword_gap_agent, "keyword_insights"))
     workflow.add_node("integrator", integrator_node)
-    
+
     # 定义工作流边
     workflow.set_entry_point("crawler")
-    
-    # 爬虫完成后并行执行 GEO 分析
+
+    # 爬虫完成后并行执行所有分析
     workflow.add_edge("crawler", "entity_analysis")
     workflow.add_edge("crawler", "serp_analysis")
-    
+    workflow.add_edge("crawler", "technical_audit")
+    workflow.add_edge("crawler", "keyword_gap")
+
     # 所有分析完成后进行集成
     workflow.add_edge("entity_analysis", "integrator")
     workflow.add_edge("serp_analysis", "integrator")
-    
+    workflow.add_edge("technical_audit", "integrator")
+    workflow.add_edge("keyword_gap", "integrator")
+
     # 集成完成后结束
     workflow.add_edge("integrator", END)
-    
+
     # 添加检查点保存器
     memory = MemorySaver()
-    
+
     # 编译工作流
     app = workflow.compile(checkpointer=memory)
-    
+
     return app
 
 
