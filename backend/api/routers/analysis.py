@@ -7,6 +7,7 @@ from pydantic import BaseModel, HttpUrl
 from typing import Optional
 import uuid
 import logging
+from ...graph.workflow import execute_seo_analysis
 
 logger = logging.getLogger(__name__)
 
@@ -41,8 +42,8 @@ async def start_analysis(
         # 生成运行 ID
         run_id = str(uuid.uuid4())
         
-        # TODO: 在后台启动 LangGraph 工作流
-        # background_tasks.add_task(execute_seo_workflow, run_id, str(request.url), request.locale)
+        # 在后台启动 LangGraph 工作流
+        background_tasks.add_task(execute_seo_analysis, str(request.url), request.locale, request.site_id)
         
         logger.info(f"Started analysis for {request.url} with run_id: {run_id}")
         
