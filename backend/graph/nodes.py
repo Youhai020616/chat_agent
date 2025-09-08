@@ -125,7 +125,8 @@ class IntegratorNode:
                 "serp": state.serp_insights,
                 "local_seo": state.local_seo_insights,
                 "gmb": state.gmb_insights,
-                "geo_content": state.geo_content_insights
+                "geo_content": state.geo_content_insights,
+                "competitor": state.competitor_insights
             }
             
             # 生成优化计划
@@ -293,6 +294,88 @@ class IntegratorNode:
                     "effort": 4,
                     "priority": "medium",
                     "description": f"地理内容分数{content_score}分，需要增加本地化内容"
+                })
+
+        # 处理内容洞察
+        if insights.get("content"):
+            content_data = insights["content"]
+            content_score = content_data.get("content_quality_score", 0)
+            if content_score < 70:
+                plan.append({
+                    "action": "提升内容质量",
+                    "category": "content",
+                    "impact": 4,
+                    "effort": 3,
+                    "priority": "high",
+                    "description": f"内容质量分数{content_score}分，需要优化可读性、结构和深度"
+                })
+
+            # 处理内容缺口
+            content_gaps = content_data.get("content_gaps", [])
+            for gap in content_gaps[:2]:  # 只处理前2个缺口
+                plan.append({
+                    "action": gap.get("description", "填补内容缺口"),
+                    "category": "content",
+                    "impact": 3,
+                    "effort": 2,
+                    "priority": gap.get("priority", "medium"),
+                    "description": gap.get("recommendation", "")
+                })
+
+        # 处理链接洞察
+        if insights.get("link"):
+            link_data = insights["link"]
+            link_score = link_data.get("link_optimization_score", 0)
+            if link_score < 60:
+                plan.append({
+                    "action": "优化链接建设策略",
+                    "category": "link",
+                    "impact": 4,
+                    "effort": 4,
+                    "priority": "medium",
+                    "description": f"链接优化分数{link_score}分，需要改善内外链结构"
+                })
+
+            # 处理链接建设机会
+            link_opportunities = link_data.get("link_opportunities", [])
+            high_priority_opportunities = [opp for opp in link_opportunities if opp.get("priority") == "high"]
+            if high_priority_opportunities:
+                plan.append({
+                    "action": "抓住链接建设机会",
+                    "category": "link",
+                    "impact": 4,
+                    "effort": 3,
+                    "priority": "medium",
+                    "description": f"发现{len(high_priority_opportunities)}个高优先级链接建设机会"
+                })
+
+        # 处理竞争对手洞察
+        if insights.get("competitor"):
+            competitor_data = insights["competitor"]
+            competition_intensity = competitor_data.get("competition_intensity", {})
+            intensity_score = competition_intensity.get("intensity_score", 50)
+
+            if intensity_score >= 70:
+                plan.append({
+                    "action": "制定竞争差异化策略",
+                    "category": "competitor",
+                    "impact": 5,
+                    "effort": 4,
+                    "priority": "high",
+                    "description": f"竞争强度{intensity_score}分较高，需要差异化定位"
+                })
+
+            # 处理竞争机会
+            swot_analysis = competitor_data.get("swot_analysis", {})
+            opportunities = swot_analysis.get("opportunities", [])
+            if opportunities:
+                plan.append({
+                    "action": "利用竞争机会",
+                    "category": "competitor",
+                    "impact": 4,
+                    "effort": 3,
+                    "priority": "medium",
+                    "description": f"发现{len(opportunities)}个竞争机会，建议制定针对性策略"
                 })
         
         # 按优先级和影响力排序

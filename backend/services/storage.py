@@ -215,6 +215,28 @@ class StorageService:
             await self.db.rollback()
             logger.error(f"Failed to save geo content insights: {str(e)}")
             raise
+
+    async def save_competitor_insights(self, run_id: str, data: Dict[str, Any]):
+        """保存竞争对手分析结果"""
+        try:
+            # 使用通用的ContentInsight表存储，添加类型标识
+            insight_data = {
+                "type": "competitor",
+                "data": data
+            }
+            insight = ContentInsight(
+                run_id=uuid.UUID(run_id),
+                data=insight_data
+            )
+            self.db.add(insight)
+            await self.db.commit()
+
+            logger.info(f"Saved competitor insights for run {run_id}")
+
+        except Exception as e:
+            await self.db.rollback()
+            logger.error(f"Failed to save competitor insights: {str(e)}")
+            raise
     
     async def save_link_insights(self, run_id: str, data: Dict[str, Any]):
         """保存链接分析结果"""

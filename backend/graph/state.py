@@ -33,6 +33,7 @@ class SEOState:
     local_seo_insights: Optional[Dict[str, Any]] = None
     gmb_insights: Optional[Dict[str, Any]] = None
     geo_content_insights: Optional[Dict[str, Any]] = None
+    competitor_insights: Optional[Dict[str, Any]] = None
     
     # 集成结果
     optimization_plan: Optional[List[Dict[str, Any]]] = None
@@ -94,4 +95,6 @@ class SEOState:
             completed.append("gmb")
         if self.geo_content_insights:
             completed.append("geo_content")
+        if self.competitor_insights:
+            completed.append("competitor")
         return completed

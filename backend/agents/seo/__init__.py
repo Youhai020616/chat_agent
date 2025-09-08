@@ -11,8 +11,14 @@ SEO 优化 Agent 模块
 
 from .technical_audit import TechnicalAuditAgent
 from .keyword_gap import KeywordGapAgent
+from .content import ContentAgent
+from .link import LinkAgent
+from .competitor import CompetitorAgent
 
 __all__ = [
     "TechnicalAuditAgent",
-    "KeywordGapAgent"
+    "KeywordGapAgent",
+    "ContentAgent",
+    "LinkAgent",
+    "CompetitorAgent"
 ]

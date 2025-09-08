@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { 
+import {
   ChartBarIcon,
   ClockIcon,
   CheckCircleIcon,
@@ -9,7 +9,9 @@ import {
   MagnifyingGlassIcon,
   GlobeAltIcon,
   WrenchScrewdriverIcon,
-  LinkIcon
+  LinkIcon,
+  DocumentTextIcon,
+  UserGroupIcon
 } from '@heroicons/react/24/outline'
 
 interface AnalysisResults {
@@ -177,9 +179,11 @@ export function Results() {
   const tabs = [
     { id: 'overview', name: '总览', icon: ChartBarIcon },
     { id: 'keyword', name: '关键词分析', icon: MagnifyingGlassIcon },
+    { id: 'content', name: '内容分析', icon: DocumentTextIcon },
     { id: 'technical', name: '技术SEO', icon: WrenchScrewdriverIcon },
-    { id: 'geo', name: '地理优化', icon: GlobeAltIcon },
-    { id: 'serp', name: 'SERP分析', icon: LinkIcon }
+    { id: 'link', name: '链接分析', icon: LinkIcon },
+    { id: 'competitor', name: '竞争分析', icon: UserGroupIcon },
+    { id: 'geo', name: '地理优化', icon: GlobeAltIcon }
   ]
 
   const getPriorityColor = (priority: string) => {
@@ -362,6 +366,220 @@ export function Results() {
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'content' && results.content_insights && (
+          <div className="space-y-6">
+            {/* 内容质量分数 */}
+            <div className="card">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">内容质量评估</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-blue-600">
+                    {results.content_insights.content_quality_score || 0}
+                  </div>
+                  <div className="text-sm text-gray-600">总体质量分数</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-green-600">
+                    {results.content_insights.readability_analysis?.readability_score || 0}
+                  </div>
+                  <div className="text-sm text-gray-600">可读性分数</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-purple-600">
+                    {results.content_insights.seo_optimization?.seo_score || 0}
+                  </div>
+                  <div className="text-sm text-gray-600">SEO优化分数</div>
+                </div>
+              </div>
+            </div>
+
+            {/* 内容缺口 */}
+            {results.content_insights.content_gaps?.length > 0 && (
+              <div className="card">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">内容缺口</h2>
+                <div className="space-y-3">
+                  {results.content_insights.content_gaps.map((gap: any, index: number) => (
+                    <div key={index} className="border-l-4 border-yellow-400 bg-yellow-50 p-4">
+                      <div className="flex">
+                        <ExclamationTriangleIcon className="h-5 w-5 text-yellow-400" />
+                        <div className="ml-3">
+                          <h3 className="text-sm font-medium text-yellow-800">{gap.gap_type}</h3>
+                          <p className="mt-1 text-sm text-yellow-700">{gap.description}</p>
+                          <p className="mt-1 text-xs text-yellow-600">{gap.recommendation}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'link' && results.link_insights && (
+          <div className="space-y-6">
+            {/* 链接优化分数 */}
+            <div className="card">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">链接分析</h2>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-blue-600">
+                    {results.link_insights.link_optimization_score || 0}
+                  </div>
+                  <div className="text-sm text-gray-600">链接优化分数</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-green-600">
+                    {results.link_insights.internal_links_analysis?.total_internal_links || 0}
+                  </div>
+                  <div className="text-sm text-gray-600">内部链接数</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-purple-600">
+                    {results.link_insights.external_links_analysis?.total_external_links || 0}
+                  </div>
+                  <div className="text-sm text-gray-600">外部链接数</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-orange-600">
+                    {results.link_insights.link_quality_analysis?.overall_quality_score || 0}
+                  </div>
+                  <div className="text-sm text-gray-600">链接质量分数</div>
+                </div>
+              </div>
+            </div>
+
+            {/* 链接建设机会 */}
+            {results.link_insights.link_opportunities?.length > 0 && (
+              <div className="card">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">链接建设机会</h2>
+                <div className="space-y-3">
+                  {results.link_insights.link_opportunities.map((opp: any, index: number) => (
+                    <div key={index} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h3 className="font-medium text-gray-900">{opp.title}</h3>
+                          <p className="mt-1 text-sm text-gray-600">{opp.description}</p>
+                          <div className="mt-2 flex items-center space-x-4 text-xs text-gray-500">
+                            <span>影响: {opp.potential_impact}</span>
+                            <span>工作量: {opp.effort_required}</span>
+                          </div>
+                        </div>
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getPriorityColor(opp.priority)}`}>
+                          {opp.priority}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'competitor' && results.competitor_insights && (
+          <div className="space-y-6">
+            {/* 竞争强度 */}
+            <div className="card">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">竞争环境分析</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-red-600">
+                    {results.competitor_insights.competition_intensity?.intensity_score || 0}
+                  </div>
+                  <div className="text-sm text-gray-600">竞争强度分数</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-blue-600">
+                    {results.competitor_insights.identified_competitors?.length || 0}
+                  </div>
+                  <div className="text-sm text-gray-600">识别竞争对手</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-bold text-gray-900 capitalize">
+                    {results.competitor_insights.competition_intensity?.overall_intensity || 'medium'}
+                  </div>
+                  <div className="text-sm text-gray-600">竞争级别</div>
+                </div>
+              </div>
+            </div>
+
+            {/* 主要竞争对手 */}
+            {results.competitor_insights.identified_competitors?.length > 0 && (
+              <div className="card">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">主要竞争对手</h2>
+                <div className="space-y-3">
+                  {results.competitor_insights.identified_competitors.slice(0, 5).map((competitor: any, index: number) => (
+                    <div key={index} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="font-medium text-gray-900">{competitor.domain}</h3>
+                          <p className="text-sm text-gray-600">出现次数: {competitor.appearances}</p>
+                          <p className="text-xs text-gray-500">平均排名: {competitor.avg_position?.toFixed(1)}</p>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm font-medium text-gray-900">
+                            关键词: {competitor.keywords?.length || 0}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* SWOT分析 */}
+            {results.competitor_insights.swot_analysis && (
+              <div className="card">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">SWOT分析</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h3 className="font-medium text-green-800 mb-2">优势 (Strengths)</h3>
+                    <div className="space-y-2">
+                      {results.competitor_insights.swot_analysis.strengths?.slice(0, 3).map((strength: any, index: number) => (
+                        <div key={index} className="text-sm text-green-700 bg-green-50 p-2 rounded">
+                          {strength.description}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-red-800 mb-2">劣势 (Weaknesses)</h3>
+                    <div className="space-y-2">
+                      {results.competitor_insights.swot_analysis.weaknesses?.slice(0, 3).map((weakness: any, index: number) => (
+                        <div key={index} className="text-sm text-red-700 bg-red-50 p-2 rounded">
+                          {weakness.description}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-blue-800 mb-2">机会 (Opportunities)</h3>
+                    <div className="space-y-2">
+                      {results.competitor_insights.swot_analysis.opportunities?.slice(0, 3).map((opportunity: any, index: number) => (
+                        <div key={index} className="text-sm text-blue-700 bg-blue-50 p-2 rounded">
+                          {opportunity.description}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-yellow-800 mb-2">威胁 (Threats)</h3>
+                    <div className="space-y-2">
+                      {results.competitor_insights.swot_analysis.threats?.slice(0, 3).map((threat: any, index: number) => (
+                        <div key={index} className="text-sm text-yellow-700 bg-yellow-50 p-2 rounded">
+                          {threat.description}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

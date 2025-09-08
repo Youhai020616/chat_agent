@@ -12,7 +12,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from .state import SEOState
 from .nodes import CrawlerNode, AgentNode, IntegratorNode
 from ..agents.geo import EntityAgent, SERPSpyAgent, LocalSEOAgent, GMBAgent, GeoContentAgent
-from ..agents.seo import TechnicalAuditAgent, KeywordGapAgent
+from ..agents.seo import TechnicalAuditAgent, KeywordGapAgent, ContentAgent, LinkAgent, CompetitorAgent
 
 logger = logging.getLogger(__name__)
 
@@ -32,37 +32,48 @@ def create_seo_workflow(config: Optional[Dict[str, Any]] = None) -> StateGraph:
     geo_content_agent = GeoContentAgent(config)
     technical_audit_agent = TechnicalAuditAgent(config)
     keyword_gap_agent = KeywordGapAgent(config)
+    content_agent = ContentAgent(config)
+    link_agent = LinkAgent(config)
+    competitor_agent = CompetitorAgent(config)
     integrator_node = IntegratorNode(config)
 
     # 添加节点到工作流
     workflow.add_node("crawler", crawler_node)
     workflow.add_node("entity_analysis", AgentNode(entity_agent, "geo_insights"))
     workflow.add_node("serp_analysis", AgentNode(serp_spy_agent, "serp_insights"))
+    workflow.add_node("technical_audit", AgentNode(technical_audit_agent, "technical_insights"))
+    workflow.add_node("keyword_gap", AgentNode(keyword_gap_agent, "keyword_insights"))
+    workflow.add_node("content_analysis", AgentNode(content_agent, "content_insights"))
+    workflow.add_node("link_analysis", AgentNode(link_agent, "link_insights"))
+    workflow.add_node("competitor_analysis", AgentNode(competitor_agent, "competitor_insights"))
     workflow.add_node("local_seo", AgentNode(local_seo_agent, "local_seo_insights"))
     workflow.add_node("gmb_analysis", AgentNode(gmb_agent, "gmb_insights"))
     workflow.add_node("geo_content", AgentNode(geo_content_agent, "geo_content_insights"))
-    workflow.add_node("technical_audit", AgentNode(technical_audit_agent, "technical_insights"))
-    workflow.add_node("keyword_gap", AgentNode(keyword_gap_agent, "keyword_insights"))
     workflow.add_node("integrator", integrator_node)
 
-    # 定义工作流边
+    # 定义工作流边 - 三阶段执行
     workflow.set_entry_point("crawler")
 
-    # 爬虫完成后并行执行所有分析
+    # 第一阶段：基础分析（并行执行）
     workflow.add_edge("crawler", "entity_analysis")
     workflow.add_edge("crawler", "serp_analysis")
     workflow.add_edge("crawler", "technical_audit")
     workflow.add_edge("crawler", "keyword_gap")
 
-    # GEO Agent 依赖基础分析结果，在第二阶段执行
+    # 第二阶段：高级SEO分析（依赖基础分析结果）
+    workflow.add_edge("keyword_gap", "content_analysis")
+    workflow.add_edge("technical_audit", "link_analysis")
+    workflow.add_edge("serp_analysis", "competitor_analysis")
+
+    # 第三阶段：GEO分析（依赖实体分析结果）
     workflow.add_edge("entity_analysis", "local_seo")
     workflow.add_edge("entity_analysis", "gmb_analysis")
     workflow.add_edge("entity_analysis", "geo_content")
 
     # 所有分析完成后进行集成
-    workflow.add_edge("serp_analysis", "integrator")
-    workflow.add_edge("technical_audit", "integrator")
-    workflow.add_edge("keyword_gap", "integrator")
+    workflow.add_edge("content_analysis", "integrator")
+    workflow.add_edge("link_analysis", "integrator")
+    workflow.add_edge("competitor_analysis", "integrator")
     workflow.add_edge("local_seo", "integrator")
     workflow.add_edge("gmb_analysis", "integrator")
     workflow.add_edge("geo_content", "integrator")
