@@ -37,10 +37,15 @@ docs/
 ## 📖 文档详情
 
 ### 架构文档
+- **[架构编目索引](architecture/README.md)** 🆕 - 系统架构编目文档中心
 - **[项目概览](architecture/project-overview.md)** - 系统总体设计与技术实现路径
+- **[前端架构设计](architecture/frontend-architecture.md)** 🆕 - React + TypeScript 前端架构设计
 - **[系统设计](architecture/system-design.md)** - 接口风格（REST/Realtime/GraphQL）、后端 + Worker + 数据库（Supabase）设计、部署与观测建议
 - **[数据模型与 RLS](architecture/data-model.md)** - 表结构、索引与 RLS 策略（Supabase）
 - **[成本与容量](architecture/cost-and-capacity.md)** - 成本优先与扩展路径
+
+### API 文档
+- **[API 接口规范](api/api-specification.md)** 🆕 - 前后端 API 接口定义与规范
 
 ### 方法论文档  
 - **[GEO 方法论](methodology/geo.md)** - 21万字生成式引擎优化白皮书，涵盖：

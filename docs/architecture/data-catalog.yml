@@ -1,0 +1,579 @@
+# 数据模型架构编目
+# Data Model Architecture Catalog
+
+metadata:
+  name: "SEO & GEO Data Models"
+  version: "1.0.0"
+  description: "数据模型、关系和存储架构定义"
+  database: "PostgreSQL 15+"
+  orm: "SQLAlchemy"
+  migration_tool: "Alembic"
+
+# 数据库配置
+database_config:
+  primary:
+    engine: "postgresql"
+    host: "${DB_HOST}"
+    port: 5432
+    database: "seo_geo_system"
+    schema: "public"
+    connection_pool:
+      min_connections: 5
+      max_connections: 20
+      pool_timeout: 30
+    
+  replica:
+    engine: "postgresql"
+    host: "${DB_REPLICA_HOST}"
+    port: 5432
+    database: "seo_geo_system"
+    read_only: true
+
+# 核心数据实体
+entities:
+  # 用户相关
+  users:
+    table_name: "users"
+    description: "系统用户账户信息"
+    primary_key: "id"
+    fields:
+      id:
+        type: "uuid"
+        primary_key: true
+        default: "gen_random_uuid()"
+      email:
+        type: "string"
+        length: 255
+        unique: true
+        nullable: false
+        index: true
+      password_hash:
+        type: "string"
+        length: 255
+        nullable: false
+      name:
+        type: "string"
+        length: 100
+        nullable: false
+      role:
+        type: "enum"
+        values: ["admin", "user", "viewer"]
+        default: "user"
+      is_active:
+        type: "boolean"
+        default: true
+      created_at:
+        type: "timestamp"
+        default: "now()"
+      updated_at:
+        type: "timestamp"
+        default: "now()"
+        on_update: "now()"
+      last_login:
+        type: "timestamp"
+        nullable: true
+    
+    indexes:
+      - name: "idx_users_email"
+        fields: ["email"]
+        unique: true
+      - name: "idx_users_role_active"
+        fields: ["role", "is_active"]
+    
+    constraints:
+      - name: "check_email_format"
+        type: "check"
+        condition: "email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$'"
+
+  # 站点相关
+  sites:
+    table_name: "sites"
+    description: "监控的网站信息"
+    primary_key: "id"
+    fields:
+      id:
+        type: "uuid"
+        primary_key: true
+        default: "gen_random_uuid()"
+      user_id:
+        type: "uuid"
+        foreign_key: "users.id"
+        nullable: false
+      url:
+        type: "string"
+        length: 500
+        nullable: false
+        index: true
+      name:
+        type: "string"
+        length: 200
+        nullable: false
+      status:
+        type: "enum"
+        values: ["active", "inactive", "analyzing", "error"]
+        default: "active"
+      crawl_config:
+        type: "jsonb"
+        nullable: false
+        default: "{}"
+      analysis_config:
+        type: "jsonb"
+        nullable: false
+        default: "{}"
+      last_analysis_at:
+        type: "timestamp"
+        nullable: true
+      metrics:
+        type: "jsonb"
+        nullable: false
+        default: "{}"
+      created_at:
+        type: "timestamp"
+        default: "now()"
+      updated_at:
+        type: "timestamp"
+        default: "now()"
+        on_update: "now()"
+    
+    indexes:
+      - name: "idx_sites_user_id"
+        fields: ["user_id"]
+      - name: "idx_sites_url"
+        fields: ["url"]
+        unique: true
+      - name: "idx_sites_status"
+        fields: ["status"]
+      - name: "idx_sites_last_analysis"
+        fields: ["last_analysis_at"]
+    
+    relationships:
+      - name: "user"
+        type: "many_to_one"
+        target: "users"
+        foreign_key: "user_id"
+      - name: "tasks"
+        type: "one_to_many"
+        target: "tasks"
+        back_reference: "site"
+
+  # 任务相关
+  tasks:
+    table_name: "tasks"
+    description: "分析任务记录"
+    primary_key: "id"
+    fields:
+      id:
+        type: "uuid"
+        primary_key: true
+        default: "gen_random_uuid()"
+      site_id:
+        type: "uuid"
+        foreign_key: "sites.id"
+        nullable: false
+      user_id:
+        type: "uuid"
+        foreign_key: "users.id"
+        nullable: false
+      type:
+        type: "enum"
+        values: ["full_analysis", "quick_scan", "keyword_only", "technical_only", "geo_only"]
+        default: "full_analysis"
+      status:
+        type: "enum"
+        values: ["queued", "running", "completed", "failed", "cancelled"]
+        default: "queued"
+      priority:
+        type: "enum"
+        values: ["low", "normal", "high", "urgent"]
+        default: "normal"
+      agents:
+        type: "text[]"
+        default: "ARRAY['keyword', 'content', 'technical', 'geo', 'link']"
+      config:
+        type: "jsonb"
+        nullable: false
+        default: "{}"
+      progress:
+        type: "jsonb"
+        nullable: false
+        default: "{}"
+      estimated_time:
+        type: "integer"
+        nullable: true
+        comment: "预估时间(秒)"
+      actual_time:
+        type: "integer"
+        nullable: true
+        comment: "实际执行时间(秒)"
+      error_message:
+        type: "text"
+        nullable: true
+      logs:
+        type: "jsonb"
+        nullable: false
+        default: "[]"
+      created_at:
+        type: "timestamp"
+        default: "now()"
+      started_at:
+        type: "timestamp"
+        nullable: true
+      completed_at:
+        type: "timestamp"
+        nullable: true
+    
+    indexes:
+      - name: "idx_tasks_site_id"
+        fields: ["site_id"]
+      - name: "idx_tasks_user_id"
+        fields: ["user_id"]
+      - name: "idx_tasks_status"
+        fields: ["status"]
+      - name: "idx_tasks_created_at"
+        fields: ["created_at"]
+      - name: "idx_tasks_priority_status"
+        fields: ["priority", "status"]
+    
+    relationships:
+      - name: "site"
+        type: "many_to_one"
+        target: "sites"
+        foreign_key: "site_id"
+      - name: "user"
+        type: "many_to_one"
+        target: "users"
+        foreign_key: "user_id"
+      - name: "results"
+        type: "one_to_many"
+        target: "results"
+        back_reference: "task"
+
+  # 分析结果
+  results:
+    table_name: "results"
+    description: "分析结果存储"
+    primary_key: "id"
+    fields:
+      id:
+        type: "uuid"
+        primary_key: true
+        default: "gen_random_uuid()"
+      task_id:
+        type: "uuid"
+        foreign_key: "tasks.id"
+        nullable: false
+      agent:
+        type: "enum"
+        values: ["keyword", "content", "technical", "geo", "link", "integrator"]
+        nullable: false
+      data:
+        type: "jsonb"
+        nullable: false
+        default: "{}"
+      summary:
+        type: "jsonb"
+        nullable: false
+        default: "{}"
+      recommendations:
+        type: "jsonb"
+        nullable: false
+        default: "[]"
+      issues_found:
+        type: "jsonb"
+        nullable: false
+        default: "[]"
+      confidence_score:
+        type: "decimal"
+        precision: 3
+        scale: 2
+        nullable: true
+      execution_time:
+        type: "integer"
+        nullable: true
+        comment: "执行时间(毫秒)"
+      created_at:
+        type: "timestamp"
+        default: "now()"
+    
+    indexes:
+      - name: "idx_results_task_id"
+        fields: ["task_id"]
+      - name: "idx_results_agent"
+        fields: ["agent"]
+      - name: "idx_results_task_agent"
+        fields: ["task_id", "agent"]
+        unique: true
+    
+    relationships:
+      - name: "task"
+        type: "many_to_one"
+        target: "tasks"
+        foreign_key: "task_id"
+
+  # 优化计划
+  optimization_plans:
+    table_name: "optimization_plans"
+    description: "生成的优化计划"
+    primary_key: "id"
+    fields:
+      id:
+        type: "uuid"
+        primary_key: true
+        default: "gen_random_uuid()"
+      task_id:
+        type: "uuid"
+        foreign_key: "tasks.id"
+        nullable: false
+      category:
+        type: "enum"
+        values: ["keyword", "content", "technical", "geo", "link"]
+        nullable: false
+      priority:
+        type: "enum"
+        values: ["low", "medium", "high", "critical"]
+        nullable: false
+      impact:
+        type: "integer"
+        nullable: false
+        comment: "影响度(1-5)"
+      effort:
+        type: "integer"
+        nullable: false
+        comment: "实施难度(1-5)"
+      title:
+        type: "string"
+        length: 200
+        nullable: false
+      description:
+        type: "text"
+        nullable: false
+      implementation_guide:
+        type: "text"
+        nullable: true
+      estimated_improvement:
+        type: "string"
+        length: 100
+        nullable: true
+      evidence_data:
+        type: "jsonb"
+        nullable: false
+        default: "{}"
+      status:
+        type: "enum"
+        values: ["pending", "in_progress", "completed", "ignored"]
+        default: "pending"
+      created_at:
+        type: "timestamp"
+        default: "now()"
+      updated_at:
+        type: "timestamp"
+        default: "now()"
+        on_update: "now()"
+    
+    indexes:
+      - name: "idx_optimization_task_id"
+        fields: ["task_id"]
+      - name: "idx_optimization_priority"
+        fields: ["priority"]
+      - name: "idx_optimization_impact_effort"
+        fields: ["impact", "effort"]
+    
+    relationships:
+      - name: "task"
+        type: "many_to_one"
+        target: "tasks"
+        foreign_key: "task_id"
+
+  # KPI指标
+  kpis:
+    table_name: "kpis"
+    description: "KPI指标数据"
+    primary_key: "id"
+    fields:
+      id:
+        type: "uuid"
+        primary_key: true
+        default: "gen_random_uuid()"
+      site_id:
+        type: "uuid"
+        foreign_key: "sites.id"
+        nullable: false
+      metric:
+        type: "enum"
+        values: ["organic_traffic", "rankings", "backlinks", "page_speed", "seo_score"]
+        nullable: false
+      value:
+        type: "decimal"
+        precision: 12
+        scale: 2
+        nullable: false
+      metadata:
+        type: "jsonb"
+        nullable: false
+        default: "{}"
+      recorded_at:
+        type: "timestamp"
+        nullable: false
+        index: true
+      created_at:
+        type: "timestamp"
+        default: "now()"
+    
+    indexes:
+      - name: "idx_kpis_site_metric"
+        fields: ["site_id", "metric"]
+      - name: "idx_kpis_recorded_at"
+        fields: ["recorded_at"]
+      - name: "idx_kpis_site_metric_time"
+        fields: ["site_id", "metric", "recorded_at"]
+    
+    relationships:
+      - name: "site"
+        type: "many_to_one"
+        target: "sites"
+        foreign_key: "site_id"
+
+# 视图定义
+views:
+  task_summary:
+    description: "任务统计汇总视图"
+    sql: |
+      SELECT 
+        s.id as site_id,
+        s.name as site_name,
+        COUNT(t.id) as total_tasks,
+        COUNT(CASE WHEN t.status = 'completed' THEN 1 END) as completed_tasks,
+        COUNT(CASE WHEN t.status = 'failed' THEN 1 END) as failed_tasks,
+        AVG(t.actual_time) as avg_execution_time,
+        MAX(t.completed_at) as last_analysis
+      FROM sites s
+      LEFT JOIN tasks t ON s.id = t.site_id
+      GROUP BY s.id, s.name
+  
+  kpi_trends:
+    description: "KPI趋势数据视图"
+    sql: |
+      SELECT 
+        site_id,
+        metric,
+        DATE_TRUNC('day', recorded_at) as date,
+        AVG(value) as avg_value,
+        MIN(value) as min_value,
+        MAX(value) as max_value,
+        COUNT(*) as data_points
+      FROM kpis
+      GROUP BY site_id, metric, DATE_TRUNC('day', recorded_at)
+      ORDER BY date DESC
+
+# 缓存策略
+caching:
+  redis_config:
+    host: "${REDIS_HOST}"
+    port: 6379
+    database: 0
+    key_prefix: "seo_geo:"
+    default_ttl: 3600
+  
+  cache_patterns:
+    api_responses:
+      pattern: "api:{endpoint}:{params_hash}"
+      ttl: 300
+      description: "API响应缓存"
+    
+    site_metrics:
+      pattern: "metrics:{site_id}:{metric}"
+      ttl: 1800
+      description: "站点指标缓存"
+    
+    task_progress:
+      pattern: "progress:{task_id}"
+      ttl: 600
+      description: "任务进度缓存"
+    
+    user_sessions:
+      pattern: "session:{user_id}"
+      ttl: 86400
+      description: "用户会话缓存"
+
+# 数据迁移策略
+migrations:
+  strategy: "rolling_updates"
+  tools: ["alembic"]
+  
+  scripts:
+    - version: "001_initial_schema"
+      description: "创建初始数据库架构"
+      operations:
+        - "create_users_table"
+        - "create_sites_table"
+        - "create_tasks_table"
+        - "create_results_table"
+    
+    - version: "002_add_kpis"
+      description: "添加KPI指标表"
+      operations:
+        - "create_kpis_table"
+        - "create_kpi_indexes"
+    
+    - version: "003_optimization_plans"
+      description: "添加优化计划表"
+      operations:
+        - "create_optimization_plans_table"
+        - "create_plan_indexes"
+
+# 备份策略
+backup:
+  full_backup:
+    frequency: "daily"
+    time: "02:00 UTC"
+    retention: "30 days"
+    compression: true
+  
+  incremental_backup:
+    frequency: "hourly"
+    retention: "7 days"
+    compression: true
+  
+  replication:
+    type: "streaming"
+    lag_threshold: "1 minute"
+    failover_mode: "automatic"
+
+# 监控指标
+monitoring:
+  database_metrics:
+    - "connection_count"
+    - "query_execution_time"
+    - "slow_queries"
+    - "table_sizes"
+    - "index_usage"
+  
+  cache_metrics:
+    - "hit_rate"
+    - "memory_usage"
+    - "key_count"
+    - "eviction_rate"
+  
+  data_quality:
+    - "null_value_percentage"
+    - "data_freshness"
+    - "constraint_violations"
+    - "duplicate_records"
+
+# 安全设置
+security:
+  encryption:
+    at_rest: true
+    in_transit: true
+    sensitive_fields: ["password_hash", "api_keys"]
+  
+  access_control:
+    row_level_security: true
+    column_level_permissions: true
+    audit_logging: true
+  
+  data_retention:
+    logs: "90 days"
+    completed_tasks: "1 year"
+    kpi_data: "3 years"
+    user_activity: "180 days"

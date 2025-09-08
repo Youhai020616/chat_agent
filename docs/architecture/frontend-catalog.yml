@@ -1,0 +1,577 @@
+# 前端组件架构编目
+# Frontend Component Architecture Catalog
+
+metadata:
+  name: "SEO & GEO Frontend Components"
+  version: "1.0.0"
+  description: "前端组件架构、状态管理和交互设计"
+  framework: "React 18 + TypeScript"
+  ui_library: "TailwindCSS + HeadlessUI"
+  build_tool: "Vite"
+
+# 组件层次结构
+component_hierarchy:
+  # 根组件
+  app:
+    component: "App"
+    path: "/src/App.tsx"
+    type: "container"
+    description: "应用根组件，处理全局路由和布局"
+    children:
+      - "router"
+      - "providers"
+      - "layouts"
+
+  # 路由层
+  router:
+    component: "AppRouter"
+    path: "/src/router/index.tsx"
+    type: "routing"
+    routes:
+      - path: "/"
+        component: "Dashboard"
+        protected: true
+      - path: "/analysis"
+        component: "Analysis"
+        protected: true
+      - path: "/analysis/:taskId"
+        component: "AnalysisDetail"
+        protected: true
+      - path: "/results/:taskId"
+        component: "Results"
+        protected: true
+      - path: "/kpi"
+        component: "KPI"
+        protected: true
+      - path: "/settings"
+        component: "Settings"
+        protected: true
+      - path: "/login"
+        component: "Login"
+        protected: false
+      - path: "/register"
+        component: "Register"
+        protected: false
+
+  # 全局提供者
+  providers:
+    - name: "QueryClientProvider"
+      purpose: "React Query数据管理"
+      config:
+        staleTime: 300000
+        cacheTime: 600000
+        refetchOnWindowFocus: false
+    
+    - name: "AuthProvider"
+      purpose: "认证上下文管理"
+      store: "authStore"
+    
+    - name: "ThemeProvider"
+      purpose: "主题切换管理"
+      store: "themeStore"
+    
+    - name: "I18nProvider"
+      purpose: "国际化支持"
+      languages: ["zh-CN", "en-US"]
+
+# 页面组件
+pages:
+  Dashboard:
+    path: "/src/pages/Dashboard"
+    layout: "MainLayout"
+    features:
+      - name: "SiteOverview"
+        description: "站点概览卡片"
+        api: ["sites.getAll"]
+      - name: "RecentTasks"
+        description: "最近任务列表"
+        api: ["tasks.getRecent"]
+      - name: "KPICards"
+        description: "核心指标卡片"
+        api: ["kpis.getSummary"]
+      - name: "QuickActions"
+        description: "快速操作面板"
+    
+    state:
+      - "selectedSite"
+      - "dateRange"
+      - "refreshInterval"
+  
+  Analysis:
+    path: "/src/pages/Analysis"
+    layout: "MainLayout"
+    features:
+      - name: "BatchUpload"
+        description: "批量URL上传"
+        components:
+          - "FileUploader"
+          - "URLInput"
+          - "CSVParser"
+      - name: "TaskQueue"
+        description: "任务队列管理"
+        components:
+          - "TaskList"
+          - "TaskProgress"
+          - "QueueControl"
+      - name: "AnalysisConfig"
+        description: "分析配置面板"
+        components:
+          - "AgentSelector"
+          - "DepthControl"
+          - "PrioritySelector"
+    
+    state:
+      - "uploadedFiles"
+      - "taskQueue"
+      - "analysisConfig"
+    
+    realtime:
+      - event: "task_progress"
+        handler: "updateTaskProgress"
+      - event: "task_completed"
+        handler: "moveToCompleted"
+  
+  Results:
+    path: "/src/pages/Results"
+    layout: "MainLayout"
+    features:
+      - name: "ResultsTabs"
+        description: "分类结果展示"
+        tabs:
+          - id: "keyword"
+            title: "关键词分析"
+            component: "KeywordResults"
+          - id: "content"
+            title: "内容优化"
+            component: "ContentResults"
+          - id: "technical"
+            title: "技术SEO"
+            component: "TechnicalResults"
+          - id: "geo"
+            title: "地理优化"
+            component: "GeoResults"
+          - id: "link"
+            title: "链接建设"
+            component: "LinkResults"
+      
+      - name: "OptimizationPlan"
+        description: "优化计划列表"
+        components:
+          - "PlanList"
+          - "ImpactEffortMatrix"
+          - "ImplementationGuide"
+      
+      - name: "ExportActions"
+        description: "结果导出功能"
+        formats: ["PDF", "CSV", "JSON"]
+    
+    state:
+      - "selectedTab"
+      - "filterCriteria"
+      - "sortOrder"
+  
+  KPI:
+    path: "/src/pages/KPI"
+    layout: "MainLayout"
+    features:
+      - name: "MetricSelector"
+        description: "指标选择器"
+        metrics:
+          - "organic_traffic"
+          - "rankings"
+          - "backlinks"
+          - "page_speed"
+          - "seo_score"
+      
+      - name: "DateRangePicker"
+        description: "时间范围选择"
+        presets:
+          - "Last 7 days"
+          - "Last 30 days"
+          - "Last 90 days"
+          - "Custom"
+      
+      - name: "KPICharts"
+        description: "图表展示组件"
+        charts:
+          - type: "LineChart"
+            component: "TrendChart"
+          - type: "BarChart"
+            component: "ComparisonChart"
+          - type: "PieChart"
+            component: "DistributionChart"
+      
+      - name: "KPITable"
+        description: "数据表格"
+        features:
+          - "sorting"
+          - "filtering"
+          - "pagination"
+          - "export"
+
+# 业务特性模块
+features:
+  batch-analysis:
+    path: "/src/features/batch-analysis"
+    components:
+      FileUploader:
+        type: "form"
+        props:
+          accept: ".csv,.xlsx,.txt"
+          maxSize: 10485760
+          multiple: true
+        events:
+          - "onUpload"
+          - "onError"
+          - "onProgress"
+      
+      URLValidator:
+        type: "utility"
+        functions:
+          - "validateURL"
+          - "extractDomain"
+          - "checkDuplicate"
+      
+      TaskCreator:
+        type: "service"
+        api: "tasks.createBatch"
+        validation: "URLValidator"
+  
+  agent-flow:
+    path: "/src/features/agent-flow"
+    components:
+      FlowCanvas:
+        type: "visualization"
+        library: "react-flow"
+        nodes:
+          - type: "crawler"
+            label: "网站爬虫"
+            status: ["pending", "running", "completed", "error"]
+          - type: "agent"
+            label: "分析Agent"
+            variants: ["keyword", "content", "technical", "geo", "link"]
+          - type: "integrator"
+            label: "结果整合"
+        
+        edges:
+          - source: "crawler"
+            targets: ["agents"]
+            type: "parallel"
+          - source: "agents"
+            target: "integrator"
+            type: "converge"
+      
+      ProgressIndicator:
+        type: "display"
+        props:
+          - "percentage"
+          - "status"
+          - "estimatedTime"
+      
+      LogViewer:
+        type: "display"
+        features:
+          - "realtime"
+          - "filtering"
+          - "search"
+
+# 通用UI组件库
+ui_components:
+  # 布局组件
+  layouts:
+    MainLayout:
+      path: "/src/components/layout/MainLayout"
+      structure:
+        - "Header"
+        - "Sidebar"
+        - "Content"
+        - "Footer"
+      features:
+        - "responsive"
+        - "collapsible_sidebar"
+        - "breadcrumbs"
+    
+    AuthLayout:
+      path: "/src/components/layout/AuthLayout"
+      structure:
+        - "Logo"
+        - "Content"
+        - "Footer"
+  
+  # 基础组件
+  base:
+    Button:
+      variants: ["primary", "secondary", "danger", "ghost"]
+      sizes: ["sm", "md", "lg"]
+      states: ["default", "hover", "active", "disabled", "loading"]
+    
+    Input:
+      types: ["text", "email", "password", "number", "search"]
+      variants: ["default", "error", "success"]
+      features: ["prefix", "suffix", "clear"]
+    
+    Select:
+      features: ["search", "multi", "async", "groups"]
+    
+    Modal:
+      sizes: ["sm", "md", "lg", "xl", "full"]
+      features: ["header", "footer", "close", "overlay"]
+    
+    Toast:
+      types: ["success", "error", "warning", "info"]
+      position: ["top", "bottom", "top-right", "bottom-right"]
+    
+    Table:
+      features:
+        - "sorting"
+        - "filtering"
+        - "pagination"
+        - "selection"
+        - "expandable"
+        - "sticky_header"
+  
+  # 图表组件
+  charts:
+    LineChart:
+      library: "recharts"
+      features:
+        - "multi_series"
+        - "area_fill"
+        - "tooltips"
+        - "legend"
+        - "zoom"
+    
+    BarChart:
+      library: "recharts"
+      features:
+        - "stacked"
+        - "grouped"
+        - "horizontal"
+        - "tooltips"
+    
+    PieChart:
+      library: "recharts"
+      features:
+        - "donut"
+        - "labels"
+        - "legend"
+        - "animation"
+
+# 状态管理
+state_management:
+  # 全局状态
+  stores:
+    authStore:
+      path: "/src/stores/auth.store.ts"
+      state:
+        - "user"
+        - "token"
+        - "permissions"
+        - "isAuthenticated"
+      actions:
+        - "login"
+        - "logout"
+        - "refreshToken"
+        - "updateProfile"
+    
+    taskStore:
+      path: "/src/stores/task.store.ts"
+      state:
+        - "tasks"
+        - "currentTask"
+        - "progress"
+        - "queue"
+      actions:
+        - "createTask"
+        - "updateProgress"
+        - "cancelTask"
+        - "selectTask"
+    
+    siteStore:
+      path: "/src/stores/site.store.ts"
+      state:
+        - "sites"
+        - "selectedSite"
+        - "metrics"
+      actions:
+        - "fetchSites"
+        - "createSite"
+        - "updateSite"
+        - "deleteSite"
+    
+    uiStore:
+      path: "/src/stores/ui.store.ts"
+      state:
+        - "theme"
+        - "sidebarCollapsed"
+        - "locale"
+        - "notifications"
+      actions:
+        - "toggleTheme"
+        - "toggleSidebar"
+        - "setLocale"
+        - "showNotification"
+
+# 实时通信
+realtime:
+  # SSE连接管理
+  sse:
+    endpoint: "/events"
+    reconnect: true
+    reconnectInterval: 5000
+    events:
+      - name: "task_progress"
+        schema:
+          task_id: "string"
+          agent: "string"
+          status: "string"
+          progress: "number"
+          message: "string"
+      
+      - name: "agent_completed"
+        schema:
+          task_id: "string"
+          agent: "string"
+          duration: "number"
+          results_preview: "object"
+      
+      - name: "task_completed"
+        schema:
+          task_id: "string"
+          status: "string"
+          total_duration: "number"
+          summary: "object"
+  
+  # WebSocket备用
+  websocket:
+    endpoint: "/ws"
+    protocols: ["wss"]
+    heartbeat: 30000
+    messages:
+      subscribe:
+        type: "subscribe"
+        payload:
+          channel: "string"
+          id: "string"
+      
+      unsubscribe:
+        type: "unsubscribe"
+        payload:
+          channel: "string"
+          id: "string"
+
+# 性能优化
+performance:
+  code_splitting:
+    strategy: "route-based"
+    chunks:
+      - name: "vendor"
+        includes: ["react", "react-dom", "zustand", "axios"]
+      - name: "charts"
+        includes: ["recharts", "react-flow"]
+      - name: "utils"
+        includes: ["date-fns", "lodash"]
+  
+  lazy_loading:
+    routes: true
+    images: true
+    components:
+      - "Charts"
+      - "FlowCanvas"
+      - "ResultTables"
+  
+  caching:
+    service_worker: true
+    api_cache:
+      strategy: "cache-first"
+      ttl: 300
+    asset_cache:
+      strategy: "cache-forever"
+      patterns: ["*.js", "*.css", "*.woff2"]
+  
+  optimization:
+    - "tree-shaking"
+    - "minification"
+    - "compression"
+    - "image-optimization"
+    - "font-subsetting"
+
+# 测试策略
+testing:
+  unit_tests:
+    framework: "vitest"
+    coverage_threshold:
+      statements: 80
+      branches: 75
+      functions: 80
+      lines: 80
+    patterns:
+      - "*.test.ts"
+      - "*.test.tsx"
+  
+  integration_tests:
+    framework: "react-testing-library"
+    focus:
+      - "user interactions"
+      - "api integration"
+      - "state management"
+      - "routing"
+  
+  e2e_tests:
+    framework: "playwright"
+    scenarios:
+      - "user authentication"
+      - "site analysis flow"
+      - "results viewing"
+      - "kpi monitoring"
+
+# 主题系统
+theming:
+  themes:
+    light:
+      primary: "#3b82f6"
+      secondary: "#64748b"
+      background: "#ffffff"
+      surface: "#f8fafc"
+      text: "#1e293b"
+      border: "#e2e8f0"
+    
+    dark:
+      primary: "#60a5fa"
+      secondary: "#94a3b8"
+      background: "#0f172a"
+      surface: "#1e293b"
+      text: "#f1f5f9"
+      border: "#334155"
+  
+  components:
+    - "color-palette"
+    - "typography-scale"
+    - "spacing-system"
+    - "shadow-hierarchy"
+    - "border-radius"
+
+# 国际化
+i18n:
+  defaultLocale: "zh-CN"
+  locales:
+    - code: "zh-CN"
+      name: "简体中文"
+      path: "/src/i18n/locales/zh-CN"
+    - code: "en-US"
+      name: "English"
+      path: "/src/i18n/locales/en-US"
+  
+  namespaces:
+    - "common"
+    - "auth"
+    - "dashboard"
+    - "analysis"
+    - "results"
+    - "errors"
+  
+  features:
+    - "lazy-loading"
+    - "pluralization"
+    - "date-formatting"
+    - "number-formatting"

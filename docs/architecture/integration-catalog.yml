@@ -1,0 +1,653 @@
+# 集成架构编目
+# Integration Architecture Catalog
+
+metadata:
+  name: "SEO & GEO System Integrations"
+  version: "1.0.0"
+  description: "外部服务集成、API网关和服务间通信架构"
+  created: "2024-01-01"
+  updated: "2024-01-01"
+
+# API 网关配置
+api_gateway:
+  technology: "Kong Gateway"
+  deployment: "kubernetes"
+  
+  endpoints:
+    public:
+      base_url: "https://api.seo-geo.com"
+      rate_limit:
+        per_minute: 100
+        per_hour: 1000
+        per_day: 10000
+      
+      routes:
+        - path: "/v1/auth/*"
+          service: "auth-service"
+          methods: ["POST", "GET"]
+          plugins:
+            - "cors"
+            - "rate-limiting"
+        
+        - path: "/v1/sites/*"
+          service: "backend-api"
+          methods: ["GET", "POST", "PUT", "DELETE"]
+          plugins:
+            - "cors"
+            - "jwt-auth"
+            - "rate-limiting"
+        
+        - path: "/v1/tasks/*"
+          service: "backend-api"
+          methods: ["GET", "POST", "PUT", "DELETE"]
+          plugins:
+            - "cors"
+            - "jwt-auth"
+            - "rate-limiting"
+            - "request-size-limiting"
+        
+        - path: "/v1/results/*"
+          service: "backend-api"
+          methods: ["GET"]
+          plugins:
+            - "cors"
+            - "jwt-auth"
+            - "cache"
+        
+        - path: "/events/*"
+          service: "backend-api"
+          methods: ["GET"]
+          plugins:
+            - "cors"
+            - "jwt-auth"
+          long_lived: true
+    
+    internal:
+      base_url: "http://gateway.internal"
+      routes:
+        - path: "/internal/workers/*"
+          service: "worker-service"
+          methods: ["POST", "GET"]
+          plugins:
+            - "api-key-auth"
+            - "request-transformer"
+        
+        - path: "/internal/agents/*"
+          service: "agent-service"
+          methods: ["POST"]
+          plugins:
+            - "api-key-auth"
+            - "timeout"
+
+# 外部服务集成
+external_integrations:
+  # SEO数据服务
+  seo_services:
+    google_search_console:
+      provider: "Google"
+      api_version: "v3"
+      auth_type: "oauth2"
+      base_url: "https://www.googleapis.com/webmasters/v3"
+      
+      endpoints:
+        - name: "search_analytics"
+          path: "/sites/{siteUrl}/searchAnalytics/query"
+          method: "POST"
+          rate_limit: 1200/day
+        
+        - name: "sitemaps"
+          path: "/sites/{siteUrl}/sitemaps"
+          method: "GET"
+          rate_limit: 500/day
+        
+        - name: "url_inspection"
+          path: "/sites/{siteUrl}/urlInspection"
+          method: "POST"
+          rate_limit: 2000/day
+      
+      auth_config:
+        oauth2:
+          auth_url: "https://accounts.google.com/o/oauth2/v2/auth"
+          token_url: "https://oauth2.googleapis.com/token"
+          scopes:
+            - "https://www.googleapis.com/auth/webmasters.readonly"
+            - "https://www.googleapis.com/auth/webmasters"
+      
+      retry_policy:
+        max_retries: 3
+        backoff_type: "exponential"
+        initial_delay: 1000
+        max_delay: 60000
+    
+    ahrefs:
+      provider: "Ahrefs"
+      api_version: "v3"
+      auth_type: "api_key"
+      base_url: "https://api.ahrefs.com"
+      
+      endpoints:
+        - name: "domain_rating"
+          path: "/domain-rating"
+          method: "GET"
+          rate_limit: 15000/month
+          cost: 1
+        
+        - name: "backlinks"
+          path: "/backlinks"
+          method: "GET"
+          rate_limit: 15000/month
+          cost: 10
+        
+        - name: "organic_keywords"
+          path: "/organic-keywords"
+          method: "GET"
+          rate_limit: 15000/month
+          cost: 10
+      
+      auth_config:
+        header: "X-Api-Key"
+        key_location: "env:AHREFS_API_KEY"
+      
+      response_format: "json"
+      compression: true
+    
+    semrush:
+      provider: "SEMrush"
+      api_version: "v1"
+      auth_type: "api_key"
+      base_url: "https://api.semrush.com"
+      
+      endpoints:
+        - name: "domain_overview"
+          path: "/analytics/v1/domain/overview"
+          method: "GET"
+          credits_per_request: 10
+        
+        - name: "keyword_overview"
+          path: "/analytics/v1/keyword/overview"
+          method: "GET"
+          credits_per_request: 1
+        
+        - name: "backlinks_overview"
+          path: "/analytics/v1/backlinks/overview"
+          method: "GET"
+          credits_per_request: 10
+      
+      auth_config:
+        query_param: "key"
+        key_location: "env:SEMRUSH_API_KEY"
+      
+      limits:
+        credits_per_month: 10000
+        requests_per_second: 10
+
+  # 性能监控服务
+  performance_services:
+    pagespeed_insights:
+      provider: "Google"
+      api_version: "v5"
+      auth_type: "api_key"
+      base_url: "https://www.googleapis.com/pagespeedonline/v5"
+      
+      endpoints:
+        - name: "analyze"
+          path: "/runPagespeed"
+          method: "GET"
+          rate_limit: 25000/day
+          
+      parameters:
+        - name: "url"
+          required: true
+          type: "string"
+        - name: "strategy"
+          required: false
+          type: "enum"
+          values: ["mobile", "desktop"]
+        - name: "category"
+          required: false
+          type: "array"
+          values: ["performance", "accessibility", "seo", "best-practices"]
+      
+      response_mapping:
+        score: "lighthouseResult.categories.{category}.score"
+        metrics: "lighthouseResult.audits"
+        opportunities: "lighthouseResult.opportunities"
+    
+    gtmetrix:
+      provider: "GTmetrix"
+      api_version: "2.0"
+      auth_type: "basic"
+      base_url: "https://gtmetrix.com/api/2.0"
+      
+      endpoints:
+        - name: "test"
+          path: "/tests"
+          method: "POST"
+          async: true
+          
+        - name: "test_result"
+          path: "/tests/{test_id}"
+          method: "GET"
+          polling_required: true
+      
+      auth_config:
+        username: "env:GTMETRIX_EMAIL"
+        password: "env:GTMETRIX_API_KEY"
+      
+      test_options:
+        - "browser"
+        - "location"
+        - "connection"
+        - "device"
+        - "screen_resolution"
+
+  # 地理位置服务
+  geo_services:
+    google_my_business:
+      provider: "Google"
+      api_version: "v4"
+      auth_type: "oauth2"
+      base_url: "https://mybusiness.googleapis.com/v4"
+      
+      endpoints:
+        - name: "locations"
+          path: "/accounts/{accountId}/locations"
+          method: "GET"
+          rate_limit: 10000/day
+        
+        - name: "reviews"
+          path: "/accounts/{accountId}/locations/{locationId}/reviews"
+          method: "GET"
+          rate_limit: 5000/day
+        
+        - name: "insights"
+          path: "/accounts/{accountId}/locations/{locationId}/insights"
+          method: "GET"
+          rate_limit: 5000/day
+      
+      auth_config:
+        oauth2:
+          scopes:
+            - "https://www.googleapis.com/auth/business.manage"
+      
+      data_freshness: "24 hours"
+    
+    mapbox:
+      provider: "Mapbox"
+      api_version: "v1"
+      auth_type: "api_key"
+      base_url: "https://api.mapbox.com"
+      
+      endpoints:
+        - name: "geocoding"
+          path: "/geocoding/v5/mapbox.places/{query}.json"
+          method: "GET"
+          rate_limit: 600/minute
+        
+        - name: "reverse_geocoding"
+          path: "/geocoding/v5/mapbox.places/{longitude},{latitude}.json"
+          method: "GET"
+          rate_limit: 600/minute
+      
+      auth_config:
+        query_param: "access_token"
+        key_location: "env:MAPBOX_ACCESS_TOKEN"
+
+  # AI/LLM 服务
+  llm_services:
+    openai:
+      provider: "OpenAI"
+      api_version: "v1"
+      auth_type: "bearer"
+      base_url: "https://api.openai.com/v1"
+      
+      endpoints:
+        - name: "chat_completions"
+          path: "/chat/completions"
+          method: "POST"
+          rate_limit: 10000/minute
+          
+        - name: "embeddings"
+          path: "/embeddings"
+          method: "POST"
+          rate_limit: 3000/minute
+      
+      models:
+        - id: "gpt-4o"
+          context_window: 128000
+          output_tokens: 4096
+          cost_per_1k_input: 0.005
+          cost_per_1k_output: 0.015
+        
+        - id: "gpt-4-turbo"
+          context_window: 128000
+          output_tokens: 4096
+          cost_per_1k_input: 0.01
+          cost_per_1k_output: 0.03
+        
+        - id: "text-embedding-3-small"
+          dimensions: 1536
+          cost_per_1k_tokens: 0.00002
+      
+      auth_config:
+        header: "Authorization"
+        prefix: "Bearer"
+        key_location: "env:OPENAI_API_KEY"
+      
+      error_handling:
+        retry_on: [429, 500, 502, 503, 504]
+        max_retries: 3
+        backoff: "exponential"
+    
+    azure_openai:
+      provider: "Microsoft Azure"
+      api_version: "2023-12-01-preview"
+      auth_type: "api_key"
+      base_url: "https://{resource}.openai.azure.com"
+      
+      deployments:
+        - name: "gpt-4o"
+          model: "gpt-4o"
+          endpoint: "/openai/deployments/{deployment}/chat/completions"
+        
+        - name: "embeddings"
+          model: "text-embedding-3-small"
+          endpoint: "/openai/deployments/{deployment}/embeddings"
+      
+      auth_config:
+        header: "api-key"
+        key_location: "env:AZURE_OPENAI_KEY"
+      
+      regional_endpoints:
+        - region: "eastus"
+          priority: 1
+        - region: "westeurope"
+          priority: 2
+
+# 内部服务通信
+internal_communication:
+  # 服务发现
+  service_discovery:
+    technology: "Consul"
+    health_check_interval: 10
+    deregister_critical_after: 60
+    
+    services:
+      - name: "backend-api"
+        tags: ["api", "http"]
+        port: 8000
+        health_check:
+          http: "/health"
+          interval: "10s"
+      
+      - name: "worker-service"
+        tags: ["worker", "background"]
+        port: 8100
+        health_check:
+          tcp: "localhost:8100"
+          interval: "10s"
+      
+      - name: "agent-service"
+        tags: ["agent", "ai"]
+        port: 8200
+        health_check:
+          http: "/health"
+          interval: "10s"
+
+  # 消息队列
+  message_queue:
+    technology: "RabbitMQ"
+    connection:
+      host: "${RABBITMQ_HOST}"
+      port: 5672
+      vhost: "/seo-geo"
+      
+    exchanges:
+      - name: "tasks"
+        type: "topic"
+        durable: true
+        bindings:
+          - queue: "task.create"
+            routing_key: "task.create.*"
+          - queue: "task.update"
+            routing_key: "task.update.*"
+          - queue: "task.complete"
+            routing_key: "task.complete.*"
+      
+      - name: "agents"
+        type: "direct"
+        durable: true
+        bindings:
+          - queue: "agent.keyword"
+            routing_key: "keyword"
+          - queue: "agent.content"
+            routing_key: "content"
+          - queue: "agent.technical"
+            routing_key: "technical"
+          - queue: "agent.geo"
+            routing_key: "geo"
+          - queue: "agent.link"
+            routing_key: "link"
+    
+    queues:
+      - name: "task.create"
+        durable: true
+        arguments:
+          x-message-ttl: 3600000
+          x-max-priority: 10
+      
+      - name: "agent.keyword"
+        durable: true
+        arguments:
+          x-message-ttl: 1800000
+          x-max-length: 1000
+
+  # 服务间认证
+  service_auth:
+    method: "mutual_tls"
+    ca_cert: "/certs/ca.crt"
+    
+    service_credentials:
+      - service: "backend-api"
+        cert: "/certs/backend-api.crt"
+        key: "/certs/backend-api.key"
+      
+      - service: "worker-service"
+        cert: "/certs/worker-service.crt"
+        key: "/certs/worker-service.key"
+      
+      - service: "agent-service"
+        cert: "/certs/agent-service.crt"
+        key: "/certs/agent-service.key"
+
+# 数据同步
+data_sync:
+  # 实时同步
+  realtime_sync:
+    technology: "Apache Kafka"
+    brokers:
+      - "${KAFKA_BROKER_1}"
+      - "${KAFKA_BROKER_2}"
+      - "${KAFKA_BROKER_3}"
+    
+    topics:
+      - name: "task-events"
+        partitions: 10
+        replication_factor: 3
+        retention_ms: 604800000
+        
+      - name: "agent-results"
+        partitions: 5
+        replication_factor: 3
+        retention_ms: 2592000000
+        
+      - name: "kpi-metrics"
+        partitions: 3
+        replication_factor: 3
+        retention_ms: 31536000000
+    
+    producers:
+      - service: "backend-api"
+        topics: ["task-events"]
+        config:
+          acks: "all"
+          compression_type: "snappy"
+      
+      - service: "agent-service"
+        topics: ["agent-results"]
+        config:
+          acks: "all"
+          compression_type: "gzip"
+    
+    consumers:
+      - service: "worker-service"
+        topics: ["task-events"]
+        group_id: "worker-group"
+        config:
+          auto_offset_reset: "earliest"
+          enable_auto_commit: false
+      
+      - service: "kpi-aggregator"
+        topics: ["agent-results", "kpi-metrics"]
+        group_id: "kpi-group"
+        config:
+          auto_offset_reset: "latest"
+          enable_auto_commit: true
+
+# 集成模式
+integration_patterns:
+  # 断路器模式
+  circuit_breaker:
+    libraries:
+      python: "py-breaker"
+      javascript: "opossum"
+    
+    configs:
+      default:
+        failure_threshold: 5
+        recovery_timeout: 60
+        expected_exception: "IntegrationException"
+      
+      critical_services:
+        failure_threshold: 3
+        recovery_timeout: 30
+        expected_exception: "CriticalServiceException"
+  
+  # 重试策略
+  retry_policies:
+    default:
+      max_attempts: 3
+      delay: 1000
+      multiplier: 2
+      max_delay: 10000
+      
+    aggressive:
+      max_attempts: 5
+      delay: 500
+      multiplier: 1.5
+      max_delay: 30000
+      
+    conservative:
+      max_attempts: 2
+      delay: 5000
+      multiplier: 2
+      max_delay: 20000
+  
+  # 限流策略
+  rate_limiting:
+    token_bucket:
+      capacity: 1000
+      refill_rate: 100
+      refill_period: 1000
+      
+    sliding_window:
+      window_size: 60000
+      max_requests: 1000
+      
+    fixed_window:
+      window_size: 60000
+      max_requests: 1000
+
+# 监控和追踪
+observability:
+  # 分布式追踪
+  tracing:
+    technology: "Jaeger"
+    sampling_rate: 0.1
+    
+    instrumentation:
+      - service: "api-gateway"
+        framework: "opentracing"
+      - service: "backend-api"
+        framework: "opentelemetry"
+      - service: "worker-service"
+        framework: "opentelemetry"
+    
+    collectors:
+      - type: "agent"
+        port: 6831
+      - type: "collector"
+        port: 14268
+  
+  # 指标收集
+  metrics:
+    technology: "Prometheus"
+    scrape_interval: 15
+    
+    exporters:
+      - service: "backend-api"
+        port: 9090
+        path: "/metrics"
+      - service: "worker-service"
+        port: 9091
+        path: "/metrics"
+    
+    custom_metrics:
+      - name: "integration_requests_total"
+        type: "counter"
+        labels: ["service", "endpoint", "status"]
+      - name: "integration_duration_seconds"
+        type: "histogram"
+        labels: ["service", "endpoint"]
+      - name: "circuit_breaker_state"
+        type: "gauge"
+        labels: ["service", "state"]
+
+# 安全配置
+security:
+  # API密钥管理
+  api_key_management:
+    storage: "HashiCorp Vault"
+    rotation_period: 90
+    
+    secrets:
+      - path: "secret/seo-geo/google"
+        keys: ["api_key", "client_id", "client_secret"]
+      - path: "secret/seo-geo/ahrefs"
+        keys: ["api_key"]
+      - path: "secret/seo-geo/openai"
+        keys: ["api_key"]
+  
+  # 加密传输
+  encryption:
+    in_transit:
+      protocol: "TLS 1.3"
+      cipher_suites:
+        - "TLS_AES_256_GCM_SHA384"
+        - "TLS_CHACHA20_POLY1305_SHA256"
+        - "TLS_AES_128_GCM_SHA256"
+    
+    at_rest:
+      algorithm: "AES-256-GCM"
+      key_management: "AWS KMS"
+  
+  # 访问控制
+  access_control:
+    internal_apis:
+      authentication: "mTLS"
+      authorization: "RBAC"
+    
+    external_apis:
+      authentication: "OAuth2"
+      rate_limiting: true
+      ip_whitelist: true

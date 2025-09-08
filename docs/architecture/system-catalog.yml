@@ -1,0 +1,365 @@
+# SEO & GEO 优化系统 - 系统架构编目
+# System Architecture Catalog
+
+metadata:
+  name: "SEO & GEO Optimization System"
+  version: "1.0.0"
+  description: "基于 LangGraph 的多 Agent SEO & GEO 优化系统"
+  created: "2024-01-01"
+  updated: "2024-01-01"
+  authors: ["Development Team"]
+  tags: ["seo", "geo", "optimization", "langgraph", "multi-agent"]
+
+# 系统组件定义
+components:
+  # 前端层
+  frontend:
+    type: "presentation"
+    technology: "React 18 + TypeScript"
+    build_tool: "Vite"
+    description: "用户界面层，提供Web应用交互界面"
+    dependencies:
+      - "backend-api"
+      - "sse-events"
+    interfaces:
+      - name: "Web UI"
+        protocol: "HTTP/HTTPS"
+        port: 3000
+      - name: "API Client"
+        protocol: "REST API"
+        endpoint: "/api/v1"
+      - name: "Real-time Events"
+        protocol: "SSE/WebSocket"
+        endpoint: "/events"
+    
+    sub_components:
+      - name: "Dashboard"
+        path: "/src/pages/Dashboard"
+        purpose: "主仪表盘，显示站点概览和KPI"
+      - name: "Analysis Engine"
+        path: "/src/features/batch-analysis"
+        purpose: "批量分析管理界面"
+      - name: "Agent Flow Visualizer"
+        path: "/src/features/agent-flow"
+        purpose: "Agent工作流可视化"
+      - name: "Results Viewer"
+        path: "/src/pages/Results"
+        purpose: "分析结果展示"
+      - name: "KPI Monitor"
+        path: "/src/pages/KPI"
+        purpose: "KPI监控和图表"
+
+  # 后端API层
+  backend-api:
+    type: "service"
+    technology: "FastAPI + Python"
+    description: "REST API服务层，处理HTTP请求和SSE推送"
+    dependencies:
+      - "workers"
+      - "database"
+      - "cache"
+    interfaces:
+      - name: "REST API"
+        protocol: "HTTP"
+        port: 8000
+        endpoints:
+          - "/v1/auth/*"
+          - "/v1/sites/*"
+          - "/v1/tasks/*"
+          - "/v1/results/*"
+          - "/v1/kpis/*"
+      - name: "SSE Events"
+        protocol: "SSE"
+        port: 8000
+        endpoints:
+          - "/events/tasks/{task_id}"
+          - "/events/batch/{batch_id}"
+      - name: "WebSocket"
+        protocol: "WS"
+        port: 8000
+        endpoint: "/ws"
+    
+    sub_components:
+      - name: "Authentication Service"
+        path: "/api/auth"
+        purpose: "用户认证和授权"
+      - name: "Site Management"
+        path: "/api/sites"
+        purpose: "站点管理CRUD操作"
+      - name: "Task Management"
+        path: "/api/tasks"
+        purpose: "分析任务管理"
+      - name: "Results Service"
+        path: "/api/results"
+        purpose: "分析结果查询"
+      - name: "KPI Service"
+        path: "/api/kpis"
+        purpose: "KPI数据聚合"
+
+  # 工作节点层
+  workers:
+    type: "processing"
+    technology: "Celery + Python"
+    description: "后台任务处理器，执行Agent工作流"
+    dependencies:
+      - "langgraph-orchestrator"
+      - "agents"
+      - "database"
+      - "cache"
+      - "external-services"
+    interfaces:
+      - name: "Task Queue"
+        protocol: "AMQP"
+        broker: "RabbitMQ"
+      - name: "Result Publisher"
+        protocol: "SSE"
+        target: "backend-api"
+    
+    sub_components:
+      - name: "Orchestrator Worker"
+        path: "/workers/orchestrator.py"
+        purpose: "协调Agent执行流程"
+      - name: "Batch Worker"
+        path: "/workers/batch.py"
+        purpose: "处理批量任务"
+      - name: "Progress Publisher"
+        path: "/workers/progress.py"
+        purpose: "发布任务进度"
+
+  # LangGraph编排层
+  langgraph-orchestrator:
+    type: "orchestration"
+    technology: "LangGraph + Python"
+    description: "多Agent工作流编排引擎"
+    dependencies:
+      - "agents"
+      - "shared-state"
+    interfaces:
+      - name: "Graph Execution"
+        protocol: "Internal"
+        entry_point: "seo_optimization_workflow()"
+    
+    sub_components:
+      - name: "Graph Definition"
+        path: "/graph/workflow.py"
+        purpose: "定义Agent节点和执行边"
+      - name: "State Management"
+        path: "/graph/state.py"
+        purpose: "管理共享状态SEOState"
+      - name: "Flow Controller"
+        path: "/graph/controller.py"
+        purpose: "控制执行流程"
+
+  # Agent层
+  agents:
+    type: "intelligence"
+    technology: "Python + LLM APIs"
+    description: "专业化AI代理集合"
+    dependencies:
+      - "llm-services"
+      - "external-services"
+      - "shared-state"
+    
+    sub_components:
+      - name: "Keyword Analysis Agent"
+        path: "/agents/keyword"
+        purpose: "关键词研究和竞争分析"
+        capabilities:
+          - "搜索量分析"
+          - "竞争难度评估"
+          - "长尾关键词挖掘"
+      
+      - name: "Content Optimization Agent"
+        path: "/agents/content"
+        purpose: "内容SEO优化分析"
+        capabilities:
+          - "页面内容分析"
+          - "标题描述优化"
+          - "内容结构建议"
+      
+      - name: "Technical SEO Agent"
+        path: "/agents/technical"
+        purpose: "技术SEO检测"
+        capabilities:
+          - "网站性能分析"
+          - "技术问题检测"
+          - "移动端适配检查"
+      
+      - name: "GEO Optimization Agent"
+        path: "/agents/geo"
+        purpose: "地理位置优化"
+        capabilities:
+          - "本地搜索优化"
+          - "GMB优化建议"
+          - "地理关键词策略"
+      
+      - name: "Link Building Agent"
+        path: "/agents/link"
+        purpose: "链接建设分析"
+        capabilities:
+          - "外链机会识别"
+          - "内链优化"
+          - "链接质量评估"
+
+  # 数据层
+  database:
+    type: "persistence"
+    technology: "PostgreSQL"
+    description: "主数据存储"
+    interfaces:
+      - name: "SQL Connection"
+        protocol: "TCP"
+        port: 5432
+    
+    schemas:
+      - name: "sites"
+        purpose: "站点信息存储"
+      - name: "tasks"
+        purpose: "任务记录"
+      - name: "results"
+        purpose: "分析结果"
+      - name: "kpis"
+        purpose: "KPI指标数据"
+      - name: "users"
+        purpose: "用户账户信息"
+
+  # 缓存层
+  cache:
+    type: "caching"
+    technology: "Redis"
+    description: "数据缓存和会话存储"
+    interfaces:
+      - name: "Cache Connection"
+        protocol: "TCP"
+        port: 6379
+    
+    use_cases:
+      - "API响应缓存"
+      - "会话存储"
+      - "Agent结果缓存"
+      - "实时进度存储"
+
+  # 外部服务层
+  external-services:
+    type: "integration"
+    technology: "HTTP APIs"
+    description: "外部API服务集成"
+    
+    services:
+      - name: "Search APIs"
+        providers: ["Google Search Console", "Bing Webmaster"]
+        purpose: "搜索数据获取"
+      
+      - name: "SEO Tools"
+        providers: ["Ahrefs", "SEMrush", "Moz"]
+        purpose: "SEO指标数据"
+      
+      - name: "Performance APIs"
+        providers: ["PageSpeed Insights", "GTmetrix"]
+        purpose: "性能数据获取"
+      
+      - name: "LLM Services"
+        providers: ["OpenAI", "Azure OpenAI"]
+        purpose: "AI推理服务"
+
+# 系统架构层级
+layers:
+  presentation:
+    components: ["frontend"]
+    description: "用户界面层"
+  
+  application:
+    components: ["backend-api", "workers"]
+    description: "应用服务层"
+  
+  orchestration:
+    components: ["langgraph-orchestrator"]
+    description: "工作流编排层"
+  
+  intelligence:
+    components: ["agents"]
+    description: "AI智能层"
+  
+  data:
+    components: ["database", "cache"]
+    description: "数据持久化层"
+  
+  integration:
+    components: ["external-services"]
+    description: "外部集成层"
+
+# 数据流定义
+data_flows:
+  - name: "用户请求流"
+    path: "frontend -> backend-api -> workers -> langgraph-orchestrator -> agents"
+    description: "用户发起分析请求的数据流"
+  
+  - name: "进度反馈流"
+    path: "agents -> langgraph-orchestrator -> workers -> backend-api -> frontend"
+    description: "任务执行进度反馈流"
+  
+  - name: "结果存储流"
+    path: "agents -> database"
+    description: "分析结果持久化存储"
+  
+  - name: "缓存流"
+    path: "backend-api <-> cache"
+    description: "API响应和会话缓存"
+
+# 部署架构
+deployment:
+  environments:
+    - name: "development"
+      components:
+        - "frontend:localhost:3000"
+        - "backend-api:localhost:8000"
+        - "database:localhost:5432"
+        - "cache:localhost:6379"
+    
+    - name: "production"
+      components:
+        - "frontend:nginx-pod"
+        - "backend-api:api-service"
+        - "workers:worker-deployment"
+        - "database:postgres-cluster"
+        - "cache:redis-cluster"
+
+# 质量属性
+quality_attributes:
+  scalability:
+    - "水平扩展Worker节点"
+    - "数据库读写分离"
+    - "Redis集群缓存"
+  
+  reliability:
+    - "任务失败重试机制"
+    - "数据库主从备份"
+    - "服务健康检查"
+  
+  performance:
+    - "异步任务处理"
+    - "结果缓存策略"
+    - "数据库索引优化"
+  
+  security:
+    - "JWT认证授权"
+    - "API限流保护"
+    - "敏感数据加密"
+
+# 监控和观测
+observability:
+  metrics:
+    - "API响应时间"
+    - "任务执行时长"
+    - "Agent成功率"
+    - "系统资源使用率"
+  
+  logging:
+    - "结构化日志"
+    - "分布式追踪"
+    - "错误报告"
+  
+  alerting:
+    - "服务健康告警"
+    - "性能阈值告警"
+    - "错误率告警"
