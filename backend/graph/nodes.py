@@ -122,7 +122,10 @@ class IntegratorNode:
                 "technical": state.technical_insights,
                 "geo": state.geo_insights,
                 "link": state.link_insights,
-                "serp": state.serp_insights
+                "serp": state.serp_insights,
+                "local_seo": state.local_seo_insights,
+                "gmb": state.gmb_insights,
+                "geo_content": state.geo_content_insights
             }
             
             # 生成优化计划
@@ -236,6 +239,60 @@ class IntegratorNode:
                     "effort": 3,
                     "priority": "medium",
                     "description": f"发现 {len(local_opportunities)} 个本地搜索优化机会"
+                })
+
+        # 处理本地SEO洞察
+        if insights.get("local_seo"):
+            local_seo_data = insights["local_seo"]
+            local_seo_score = local_seo_data.get("local_seo_score", 0)
+            if local_seo_score < 70:
+                plan.append({
+                    "action": "提升本地SEO表现",
+                    "category": "local_seo",
+                    "impact": 5,
+                    "effort": 4,
+                    "priority": "high",
+                    "description": f"本地SEO分数仅{local_seo_score}分，需要全面优化"
+                })
+
+            # 处理本地SEO建议
+            recommendations = local_seo_data.get("recommendations", [])
+            for rec in recommendations[:2]:  # 只处理前2个建议
+                plan.append({
+                    "action": rec.get("title", "本地SEO优化"),
+                    "category": "local_seo",
+                    "impact": rec.get("impact", 3),
+                    "effort": rec.get("effort", 3),
+                    "priority": rec.get("priority", "medium"),
+                    "description": rec.get("description", "")
+                })
+
+        # 处理GMB洞察
+        if insights.get("gmb"):
+            gmb_data = insights["gmb"]
+            gmb_score = gmb_data.get("gmb_optimization_score", 0)
+            if gmb_score < 80:
+                plan.append({
+                    "action": "优化Google My Business档案",
+                    "category": "gmb",
+                    "impact": 4,
+                    "effort": 3,
+                    "priority": "high",
+                    "description": f"GMB优化分数{gmb_score}分，需要完善档案信息"
+                })
+
+        # 处理地理内容洞察
+        if insights.get("geo_content"):
+            geo_content_data = insights["geo_content"]
+            content_score = geo_content_data.get("geo_content_score", 0)
+            if content_score < 60:
+                plan.append({
+                    "action": "增强地理内容相关性",
+                    "category": "geo_content",
+                    "impact": 3,
+                    "effort": 4,
+                    "priority": "medium",
+                    "description": f"地理内容分数{content_score}分，需要增加本地化内容"
                 })
         
         # 按优先级和影响力排序

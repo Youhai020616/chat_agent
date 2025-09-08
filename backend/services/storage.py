@@ -144,12 +144,76 @@ class StorageService:
             )
             self.db.add(insight)
             await self.db.commit()
-            
+
             logger.info(f"Saved geo insights for run {run_id}")
-            
+
         except Exception as e:
             await self.db.rollback()
             logger.error(f"Failed to save geo insights: {str(e)}")
+            raise
+
+    async def save_local_seo_insights(self, run_id: str, data: Dict[str, Any]):
+        """保存本地SEO分析结果"""
+        try:
+            # 使用通用的GeoInsight表存储，添加类型标识
+            insight_data = {
+                "type": "local_seo",
+                "data": data
+            }
+            insight = GeoInsight(
+                run_id=uuid.UUID(run_id),
+                data=insight_data
+            )
+            self.db.add(insight)
+            await self.db.commit()
+
+            logger.info(f"Saved local SEO insights for run {run_id}")
+
+        except Exception as e:
+            await self.db.rollback()
+            logger.error(f"Failed to save local SEO insights: {str(e)}")
+            raise
+
+    async def save_gmb_insights(self, run_id: str, data: Dict[str, Any]):
+        """保存GMB分析结果"""
+        try:
+            insight_data = {
+                "type": "gmb",
+                "data": data
+            }
+            insight = GeoInsight(
+                run_id=uuid.UUID(run_id),
+                data=insight_data
+            )
+            self.db.add(insight)
+            await self.db.commit()
+
+            logger.info(f"Saved GMB insights for run {run_id}")
+
+        except Exception as e:
+            await self.db.rollback()
+            logger.error(f"Failed to save GMB insights: {str(e)}")
+            raise
+
+    async def save_geo_content_insights(self, run_id: str, data: Dict[str, Any]):
+        """保存地理内容分析结果"""
+        try:
+            insight_data = {
+                "type": "geo_content",
+                "data": data
+            }
+            insight = GeoInsight(
+                run_id=uuid.UUID(run_id),
+                data=insight_data
+            )
+            self.db.add(insight)
+            await self.db.commit()
+
+            logger.info(f"Saved geo content insights for run {run_id}")
+
+        except Exception as e:
+            await self.db.rollback()
+            logger.error(f"Failed to save geo content insights: {str(e)}")
             raise
     
     async def save_link_insights(self, run_id: str, data: Dict[str, Any]):

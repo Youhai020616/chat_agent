@@ -11,8 +11,14 @@ GEO 优化 Agent 模块
 
 from .entity import EntityAgent
 from .serp_spy import SERPSpyAgent
+from .local_seo import LocalSEOAgent
+from .gmb import GMBAgent
+from .geo_content import GeoContentAgent
 
 __all__ = [
     "EntityAgent",
-    "SERPSpyAgent"
+    "SERPSpyAgent",
+    "LocalSEOAgent",
+    "GMBAgent",
+    "GeoContentAgent"
 ]

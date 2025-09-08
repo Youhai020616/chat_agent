@@ -11,7 +11,7 @@ from langgraph.checkpoint.memory import MemorySaver
 
 from .state import SEOState
 from .nodes import CrawlerNode, AgentNode, IntegratorNode
-from ..agents.geo import EntityAgent, SERPSpyAgent
+from ..agents.geo import EntityAgent, SERPSpyAgent, LocalSEOAgent, GMBAgent, GeoContentAgent
 from ..agents.seo import TechnicalAuditAgent, KeywordGapAgent
 
 logger = logging.getLogger(__name__)
@@ -27,6 +27,9 @@ def create_seo_workflow(config: Optional[Dict[str, Any]] = None) -> StateGraph:
     crawler_node = CrawlerNode(config)
     entity_agent = EntityAgent(config)
     serp_spy_agent = SERPSpyAgent(config)
+    local_seo_agent = LocalSEOAgent(config)
+    gmb_agent = GMBAgent(config)
+    geo_content_agent = GeoContentAgent(config)
     technical_audit_agent = TechnicalAuditAgent(config)
     keyword_gap_agent = KeywordGapAgent(config)
     integrator_node = IntegratorNode(config)
@@ -35,6 +38,9 @@ def create_seo_workflow(config: Optional[Dict[str, Any]] = None) -> StateGraph:
     workflow.add_node("crawler", crawler_node)
     workflow.add_node("entity_analysis", AgentNode(entity_agent, "geo_insights"))
     workflow.add_node("serp_analysis", AgentNode(serp_spy_agent, "serp_insights"))
+    workflow.add_node("local_seo", AgentNode(local_seo_agent, "local_seo_insights"))
+    workflow.add_node("gmb_analysis", AgentNode(gmb_agent, "gmb_insights"))
+    workflow.add_node("geo_content", AgentNode(geo_content_agent, "geo_content_insights"))
     workflow.add_node("technical_audit", AgentNode(technical_audit_agent, "technical_insights"))
     workflow.add_node("keyword_gap", AgentNode(keyword_gap_agent, "keyword_insights"))
     workflow.add_node("integrator", integrator_node)
@@ -48,11 +54,18 @@ def create_seo_workflow(config: Optional[Dict[str, Any]] = None) -> StateGraph:
     workflow.add_edge("crawler", "technical_audit")
     workflow.add_edge("crawler", "keyword_gap")
 
+    # GEO Agent 依赖基础分析结果，在第二阶段执行
+    workflow.add_edge("entity_analysis", "local_seo")
+    workflow.add_edge("entity_analysis", "gmb_analysis")
+    workflow.add_edge("entity_analysis", "geo_content")
+
     # 所有分析完成后进行集成
-    workflow.add_edge("entity_analysis", "integrator")
     workflow.add_edge("serp_analysis", "integrator")
     workflow.add_edge("technical_audit", "integrator")
     workflow.add_edge("keyword_gap", "integrator")
+    workflow.add_edge("local_seo", "integrator")
+    workflow.add_edge("gmb_analysis", "integrator")
+    workflow.add_edge("geo_content", "integrator")
 
     # 集成完成后结束
     workflow.add_edge("integrator", END)

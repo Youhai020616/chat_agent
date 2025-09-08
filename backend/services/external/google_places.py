@@ -146,36 +146,50 @@ class GooglePlacesService:
             logger.error(f"Text search failed: {str(e)}")
             return []
     
-    async def analyze_local_competition(self, business_name: str, location: str) -> Dict[str, Any]:
+    async def analyze_local_competition(self, business_type: str, location: str) -> Dict[str, Any]:
         """分析本地竞争情况"""
         if not self.api_key:
             return {"competitors": [], "analysis": {}}
-        
+
         # 搜索同类企业
-        competitors = await self.search_text(business_name, location)
-        
+        competitors = await self.search_text(f"{business_type} {location}", location)
+
         analysis = {
             "total_competitors": len(competitors),
             "avg_rating": 0,
+            "avg_reviews": 0,
             "top_competitors": [],
-            "market_saturation": "low"
+            "market_saturation": "low",
+            "competitive_landscape": "low"
         }
-        
+
         if competitors:
-            # 计算平均评分
+            # 计算平均评分和评论数
             ratings = [comp.get('rating', 0) for comp in competitors if comp.get('rating')]
+            reviews = [comp.get('user_ratings_total', 0) for comp in competitors if comp.get('user_ratings_total')]
+
             if ratings:
                 analysis["avg_rating"] = sum(ratings) / len(ratings)
-            
-            # 获取前5个竞争对手
+            if reviews:
+                analysis["avg_reviews"] = sum(reviews) / len(reviews)
+
+            # 获取前5个竞争对手，增加关键词匹配
+            enhanced_competitors = []
+            for comp in competitors:
+                # 为每个竞争对手添加关键词分析
+                comp_enhanced = comp.copy()
+                comp_enhanced['keywords'] = self._extract_business_keywords(comp.get('name', ''))
+                comp_enhanced['total_appearances'] = 1  # 简化处理
+                enhanced_competitors.append(comp_enhanced)
+
             sorted_competitors = sorted(
-                competitors,
+                enhanced_competitors,
                 key=lambda x: (x.get('rating', 0), x.get('user_ratings_total', 0)),
                 reverse=True
             )
-            
+
             analysis["top_competitors"] = sorted_competitors[:5]
-            
+
             # 评估市场饱和度
             if len(competitors) > 20:
                 analysis["market_saturation"] = "high"
@@ -183,11 +197,125 @@ class GooglePlacesService:
                 analysis["market_saturation"] = "medium"
             else:
                 analysis["market_saturation"] = "low"
-        
+
+            # 评估竞争环境
+            high_quality_competitors = len([
+                c for c in competitors
+                if c.get('rating', 0) > 4.0 and c.get('user_ratings_total', 0) > 50
+            ])
+
+            if len(competitors) > 15 and high_quality_competitors > 5:
+                analysis["competitive_landscape"] = "very_high"
+            elif len(competitors) > 10 and high_quality_competitors > 3:
+                analysis["competitive_landscape"] = "high"
+            elif len(competitors) > 5:
+                analysis["competitive_landscape"] = "medium"
+            else:
+                analysis["competitive_landscape"] = "low"
+
         return {
             "competitors": competitors,
             "analysis": analysis
         }
+
+    def _extract_business_keywords(self, business_name: str) -> List[Dict[str, Any]]:
+        """从企业名称中提取关键词"""
+        # 简化的关键词提取
+        keywords = []
+        words = business_name.split()
+
+        for word in words:
+            if len(word) > 2:  # 忽略过短的词
+                keywords.append({
+                    'keyword': word,
+                    'position': 1,  # 简化处理
+                    'relevance': 'high'
+                })
+
+        return keywords
+
+    async def get_place_reviews(self, place_id: str) -> List[Dict[str, Any]]:
+        """获取地点评论"""
+        details = await self.get_place_details(place_id)
+        if details and 'reviews' in details:
+            return details['reviews']
+        return []
+
+    async def analyze_reviews_sentiment(self, reviews: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """分析评论情感"""
+        if not reviews:
+            return {
+                'sentiment_score': 0,
+                'positive_count': 0,
+                'negative_count': 0,
+                'neutral_count': 0,
+                'common_themes': []
+            }
+
+        # 简化的情感分析
+        positive_keywords = ['好', '棒', '优秀', '满意', '推荐', 'good', 'great', 'excellent']
+        negative_keywords = ['差', '糟糕', '失望', '不满', '不推荐', 'bad', 'terrible', 'disappointed']
+
+        positive_count = 0
+        negative_count = 0
+        neutral_count = 0
+
+        for review in reviews:
+            text = review.get('text', '').lower()
+
+            positive_score = sum(1 for keyword in positive_keywords if keyword in text)
+            negative_score = sum(1 for keyword in negative_keywords if keyword in text)
+
+            if positive_score > negative_score:
+                positive_count += 1
+            elif negative_score > positive_score:
+                negative_count += 1
+            else:
+                neutral_count += 1
+
+        total_reviews = len(reviews)
+        sentiment_score = (positive_count - negative_count) / total_reviews if total_reviews > 0 else 0
+
+        return {
+            'sentiment_score': sentiment_score,
+            'positive_count': positive_count,
+            'negative_count': negative_count,
+            'neutral_count': neutral_count,
+            'total_reviews': total_reviews,
+            'common_themes': self._extract_common_themes(reviews)
+        }
+
+    def _extract_common_themes(self, reviews: List[Dict[str, Any]]) -> List[str]:
+        """提取评论中的常见主题"""
+        themes = []
+
+        # 服务相关主题
+        service_keywords = ['服务', '态度', '专业', 'service', 'staff']
+        quality_keywords = ['质量', '效果', '结果', 'quality', 'result']
+        price_keywords = ['价格', '费用', '性价比', 'price', 'cost']
+
+        service_mentions = 0
+        quality_mentions = 0
+        price_mentions = 0
+
+        for review in reviews:
+            text = review.get('text', '').lower()
+
+            if any(keyword in text for keyword in service_keywords):
+                service_mentions += 1
+            if any(keyword in text for keyword in quality_keywords):
+                quality_mentions += 1
+            if any(keyword in text for keyword in price_keywords):
+                price_mentions += 1
+
+        if service_mentions > len(reviews) * 0.3:
+            themes.append('服务质量')
+        if quality_mentions > len(reviews) * 0.3:
+            themes.append('产品质量')
+        if price_mentions > len(reviews) * 0.3:
+            themes.append('价格因素')
+
+        return themes
     
     def is_available(self) -> bool:
         """检查服务是否可用"""
